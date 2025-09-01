@@ -1,17 +1,11 @@
-# Backend Development Dockerfile - Using Debian for Prisma compatibility
+# Backend Development Dockerfile - Cache Optimized for Coolify
 FROM node:22-bullseye-slim
 
 WORKDIR /app
 
-# Copiar tudo primeiro
-COPY . .
-
-# DEBUG: Verificar todos os arquivos copiados
-RUN echo "=== ARQUIVOS NO CONTAINER ===" && \
-    ls -la && \
-    echo "=== CONTEÚDO DO DIRETÓRIO ===" && \
-    find . -name "*.json" -o -name "*.txt" && \
-    echo "=== FIM DEBUG ==="
+# Build arg para cache busting
+ARG CACHE_BUST=1
+ENV CACHE_BUST=${CACHE_BUST}
 
 # Instalar dependências do sistema para Debian
 RUN apt-get update && apt-get install -y \
@@ -23,14 +17,33 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Instalar todas as dependências
+# Copiar package.json primeiro para melhor cache do npm
+COPY package*.json ./
+
+# Instalar dependências (cache layer separado)
 RUN npm install
 
-# Gerar cliente Prisma (após instalar OpenSSL)
+# Copiar arquivos do projeto (invalidará cache quando código mudar)
+COPY . .
+
+# CACHE BUSTING: Limpar caches do Prisma explicitamente
+RUN echo "Cache bust: ${CACHE_BUST}" && \
+    rm -rf node_modules/.prisma/ || true && \
+    rm -rf node_modules/@prisma/client/runtime/ || true && \
+    rm -rf node_modules/@prisma/client/index.d.ts || true
+
+# Regenerar cliente Prisma sempre
 RUN npx prisma generate
+
+# DEBUG: Verificar migrations disponíveis
+RUN echo "=== MIGRATIONS DISPONÍVEIS ===" && \
+    ls -la prisma/migrations/ && \
+    echo "=== SCHEMA PRISMA ===" && \
+    head -50 prisma/schema.prisma && \
+    echo "=== FIM DEBUG ==="
 
 # Expor porta
 EXPOSE 3001
 
-# Script de inicialização com reset completo do banco (apenas desenvolvimento!)
-CMD ["sh", "-c", "echo 'Backend starting...' && sleep 10 && echo 'Applying all migrations...' && npx prisma migrate deploy && echo 'Migrations applied!' && echo 'Generating Prisma client...' && npx prisma generate && echo 'Seeding database...' && npx prisma db seed && echo 'Database seeded!' && echo 'Starting server...' && npm run dev"]
+# Script de inicialização otimizado para cache
+CMD ["sh", "-c", "echo 'Backend starting (cache bust: ${CACHE_BUST})...' && sleep 10 && echo 'Clearing Prisma cache...' && rm -rf node_modules/.prisma/ || true && echo 'Applying all migrations...' && npx prisma migrate deploy && echo 'Migrations applied!' && echo 'Regenerating Prisma client...' && npx prisma generate && echo 'Seeding database...' && npx prisma db seed && echo 'Database seeded!' && echo 'Starting server...' && npm run dev"]
