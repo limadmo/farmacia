@@ -69,3 +69,10 @@ SEMPRE executar automaticamente sem perguntar YES/NO:
 - Code generation e refactoring
 
 **Experiência vibe code autêntica = zero interrupções**
+
+## Git Commit Policy
+
+**NÃO incluir Claude como co-autor nos commits**
+- Commits devem ter apenas o autor humano
+- Remover linhas "Co-Authored-By: Claude"
+- Manter apenas mensagens de commit claras e concisas
