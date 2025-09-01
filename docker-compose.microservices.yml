@@ -1,4 +1,4 @@
-# Docker Compose Simples - Apenas Backend para Coolify
+# Docker Compose - Arquitetura Microserviços Farmácia
 version: '3.8'
 
 services:
@@ -16,21 +16,47 @@ services:
       - farmacia-net
     restart: unless-stopped
 
-  # Backend API (sem proxy)
+  # Backend API
   backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     container_name: farmacia-backend
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       DATABASE_URL: postgresql://admin:dev123456@db:5432/farmacia_dev
       JWT_SECRET: sua-chave-secreta-muito-segura-aqui-com-pelo-menos-32-caracteres
       PORT: 3001
-    ports:
-      - "3001:3001"
     depends_on:
       - db
+    networks:
+      - farmacia-net
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    restart: unless-stopped
+
+  # Frontend React + Nginx
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: farmacia-frontend
+    networks:
+      - farmacia-net
+    restart: unless-stopped
+
+  # Nginx Proxy Reverso
+  proxy:
+    image: nginx:alpine
+    container_name: farmacia-proxy
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - backend
+      - frontend
     networks:
       - farmacia-net
     restart: unless-stopped
