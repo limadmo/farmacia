@@ -1,4 +1,4 @@
-# Docker Compose Simples - Apenas Backend para Coolify
+# Docker Compose - Frontend + Backend Simples (Sem Proxy)
 version: '3.8'
 
 services:
@@ -16,7 +16,7 @@ services:
       - farmacia-net
     restart: unless-stopped
 
-  # Backend API (sem proxy)
+  # Backend API
   backend:
     build:
       context: .
@@ -40,6 +40,25 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  # Frontend React + Nginx (Simples)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: farmacia-frontend
+    environment:
+      REACT_APP_API_URL: http://localhost:3001/api
+    ports:
+      - "3000:80"
+    networks:
+      - farmacia-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   postgres_data:
