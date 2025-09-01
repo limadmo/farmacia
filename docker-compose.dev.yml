@@ -18,7 +18,10 @@ services:
   backend-dev:
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: development
+        CACHE_BUST: ${CACHE_BUST:-1}
     container_name: farmacia-backend-dev
     environment:
       NODE_ENV: development
