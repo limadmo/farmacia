@@ -1,5 +1,5 @@
 # Backend Dockerfile - Sistema Farmácia
-FROM node:18-alpine
+FROM node:22-bullseye-slim
 
 # Instalar dependências necessárias
 RUN apk add --no-cache libc6-compat

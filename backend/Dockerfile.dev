@@ -33,4 +33,4 @@ RUN npx prisma generate
 EXPOSE 3001
 
 # Script de inicialização com reset completo do banco (apenas desenvolvimento!)
-CMD ["sh", "-c", "echo 'Backend starting...' && sleep 10 && echo 'Resetting database and applying migrations...' && npx prisma migrate reset --force && echo 'Database reset complete!' && echo 'Starting server...' && npm run dev"]
+CMD ["sh", "-c", "echo 'Backend starting...' && sleep 10 && echo 'Resetting database and applying migrations...' && npx prisma migrate reset --force && echo 'Database reset complete!' && echo 'Seeding database...' && npx prisma db seed && echo 'Database seeded!' && echo 'Starting server...' && npm run dev"]
