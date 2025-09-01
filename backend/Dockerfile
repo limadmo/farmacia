@@ -54,5 +54,5 @@ ENV PORT=3001
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3001/health || exit 1
 
-# Rodar diretamente com ts-node para evitar problemas de build
-CMD ["npx", "ts-node", "-r", "tsconfig-paths/register", "src/server.ts"]
+# Script de produção com verificação robusta
+CMD ["sh", "-c", "echo 'Production starting (cache bust: ${CACHE_BUST})...' && echo 'Clearing specific Prisma cache files...' && rm -rf node_modules/.prisma/client/index.d.ts || true && rm -rf node_modules/.prisma/client/schema.prisma || true && echo 'Applying migrations...' && npx prisma migrate deploy && echo 'Regenerating Prisma client...' && npx prisma generate && echo 'Verifying migrations (should show 5 total)...' && npx prisma migrate status && echo 'Starting production server...' && npx ts-node -r tsconfig-paths/register src/server.ts"]
