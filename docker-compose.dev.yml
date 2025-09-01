@@ -25,7 +25,7 @@ services:
       DATABASE_URL: postgresql://admin:${DB_PASSWORD}@db-dev:5432/farmacia_dev
       JWT_SECRET: ${JWT_SECRET}
       PORT: 3001
-      FRONTEND_URL: https://farmacia.diegolima.dev
+      FRONTEND_URL: https://develop.diegolima.dev/farmacia
     ports:
       - "3001:3001"
     depends_on:
@@ -40,7 +40,7 @@ services:
     container_name: farmacia-frontend-dev
     environment:
       NODE_ENV: development
-      REACT_APP_API_URL: /api
+      REACT_APP_API_URL: /farmacia/api
       REACT_APP_BACKEND_URL: http://backend-dev:3001
       DANGEROUSLY_DISABLE_HOST_CHECK: "true"
       WATCHPACK_POLLING: "true"
