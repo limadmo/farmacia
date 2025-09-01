@@ -1,0 +1,36 @@
+# Backend Development Dockerfile - Using Debian for Prisma compatibility
+FROM node:22-bullseye-slim
+
+WORKDIR /app
+
+# Copiar tudo primeiro
+COPY . .
+
+# DEBUG: Verificar todos os arquivos copiados
+RUN echo "=== ARQUIVOS NO CONTAINER ===" && \
+    ls -la && \
+    echo "=== CONTEÚDO DO DIRETÓRIO ===" && \
+    find . -name "*.json" -o -name "*.txt" && \
+    echo "=== FIM DEBUG ==="
+
+# Instalar dependências do sistema para Debian
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    openssl \
+    libssl-dev \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Instalar todas as dependências
+RUN npm install
+
+# Gerar cliente Prisma (após instalar OpenSSL)
+RUN npx prisma generate
+
+# Expor porta
+EXPOSE 3001
+
+# Script de inicialização com reset completo do banco (apenas desenvolvimento!)
+CMD ["sh", "-c", "echo 'Backend starting...' && sleep 10 && echo 'Resetting database and applying migrations...' && npx prisma migrate reset --force && echo 'Database reset complete!' && echo 'Starting server...' && npm run dev"]

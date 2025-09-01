@@ -1,0 +1,486 @@
+/**
+ * Testes de Cliente com Validações Farmacêuticas
+ * Compliance com LGPD, ANVISA e regulamentações específicas
+ */
+
+import { TipoUsuario } from '@prisma/client';
+import { ClienteService } from '@/application/services/ClienteService';
+import { 
+  setupTestDatabase, 
+  seedTestData, 
+  cleanupTestDatabase, 
+  getTestPrisma, 
+  TestHelpers 
+} from '../setup/testDatabase';
+
+describe('Cliente Farmácia - Validações Legais', () => {
+  let clienteService: ClienteService;
+  let prisma: any;
+
+  beforeAll(async () => {
+    prisma = await setupTestDatabase();
+    await seedTestData();
+    clienteService = new ClienteService();
+  }, 30000);
+
+  afterAll(async () => {
+    await cleanupTestDatabase();
+  }, 10000);
+
+  beforeEach(async () => {
+    // Limpar clientes antes de cada teste
+    await prisma.cliente.deleteMany();
+  });
+
+  describe('Cadastro e Validações Básicas', () => {
+    it('deve validar CPF obrigatório para medicamentos controlados', async () => {
+      const farmaceutico = TestHelpers.getPharmacist();
+
+      // Cliente sem CPF válido
+      await expect(async () => {
+        await clienteService.criarCliente({
+          nome: 'Cliente Sem CPF',
+          cpf: '000.000.000-00', // CPF inválido
+          telefone: '(11) 99999-9999',
+          email: 'cliente@teste.com',
+          endereco: {
+            rua: 'Rua Teste, 123',
+            cidade: 'São Paulo',
+            cep: '01234-567',
+            estado: 'SP'
+          },
+          usuarioCadastro: farmaceutico!.id,
+          finalidadeCadastro: 'MEDICAMENTO_CONTROLADO'
+        });
+      }).rejects.toThrow('CPF inválido. Obrigatório para medicamentos controlados');
+
+      // Cliente com CPF válido
+      const clienteValido = await clienteService.criarCliente({
+        nome: 'João Silva Santos',
+        cpf: '123.456.789-09', // CPF válido
+        telefone: '(11) 98765-4321',
+        email: 'joao@email.com',
+        endereco: {
+          rua: 'Av. Paulista, 1000',
+          cidade: 'São Paulo',
+          cep: '01310-100',
+          estado: 'SP'
+        },
+        usuarioCadastro: farmaceutico!.id,
+        finalidadeCadastro: 'MEDICAMENTO_CONTROLADO'
+      });
+
+      expect(clienteValido).toBeDefined();
+      expect(clienteValido.cpf).toBe('123.456.789-09');
+      expect(clienteValido.statusVerificacao).toBe('CPF_VALIDADO');
+    });
+
+    it('deve aceitar cadastro simplificado para medicamentos comuns', async () => {
+      const vendedor = TestHelpers.getSeller();
+
+      const clienteSimples = await clienteService.criarCliente({
+        nome: 'Maria Souza',
+        telefone: '(11) 95555-5555',
+        usuarioCadastro: vendedor!.id,
+        finalidadeCadastro: 'MEDICAMENTO_COMUM'
+      });
+
+      expect(clienteSimples).toBeDefined();
+      expect(clienteSimples.cpf).toBeNull(); // Não obrigatório para comuns
+      expect(clienteSimples.statusVerificacao).toBe('BASICO');
+    });
+
+    it('deve validar CNPJ para clientes pessoa jurídica', async () => {
+      const gerente = TestHelpers.findUserByType('GERENTE' as any);
+
+      const empresaCliente = await clienteService.criarCliente({
+        nome: 'Clínica Médica ABC Ltda',
+        tipoPessoa: 'JURIDICA',
+        cnpj: '12.345.678/0001-90',
+        inscricaoEstadual: '123456789',
+        telefone: '(11) 3333-4444',
+        email: 'contato@clinicaabc.com',
+        endereco: {
+          rua: 'Rua das Clínicas, 500',
+          cidade: 'São Paulo',
+          cep: '04038-001',
+          estado: 'SP'
+        },
+        usuarioCadastro: gerente!.id,
+        finalidadeCadastro: 'COMPRA_CORPORATIVA'
+      });
+
+      expect(empresaCliente).toBeDefined();
+      expect(empresaCliente.cnpj).toBe('12.345.678/0001-90');
+      expect(empresaCliente.tipoPessoa).toBe('JURIDICA');
+    });
+
+    it('deve aplicar LGPD com consentimento explícito', async () => {
+      const farmaceutico = TestHelpers.getPharmacist();
+
+      const clienteLGPD = await clienteService.criarCliente({
+        nome: 'Ana Paula Lima',
+        cpf: '987.654.321-00',
+        telefone: '(11) 91111-2222',
+        email: 'ana@email.com',
+        endereco: {
+          rua: 'Rua LGPD, 200',
+          cidade: 'São Paulo',
+          cep: '01234-567',
+          estado: 'SP'
+        },
+        consentimentoLGPD: {
+          dataConsentimento: new Date(),
+          finalidades: [
+            'DISPENSACAO_MEDICAMENTOS',
+            'HISTORICO_COMPRAS',
+            'COMUNICACAO_PROMOCIONAL'
+          ],
+          ipConsentimento: '192.168.1.100',
+          versaoTermos: '1.0'
+        },
+        usuarioCadastro: farmaceutico!.id
+      });
+
+      expect(clienteLGPD.consentimentoLGPD).toBeDefined();
+      expect(clienteLGPD.consentimentoLGPD.finalidades).toHaveLength(3);
+      expect(clienteLGPD.consentimentoLGPD.dataConsentimento).toBeInstanceOf(Date);
+    });
+  });
+
+  describe('Controle de Compras Controladas', () => {
+    it('deve registrar histórico de medicamentos controlados', async () => {
+      const farmaceutico = TestHelpers.getPharmacist();
+      const produtoControlado = TestHelpers.getControlledProduct();
+
+      // Criar cliente
+      const cliente = await clienteService.criarCliente({
+        nome: 'Carlos Eduardo',
+        cpf: '111.222.333-44',
+        telefone: '(11) 97777-8888',
+        usuarioCadastro: farmaceutico!.id,
+        finalidadeCadastro: 'MEDICAMENTO_CONTROLADO'
+      });
+
+      // Registrar compra de controlado
+      await clienteService.registrarCompraControlada({
+        clienteId: cliente.id,
+        produtoId: produtoControlado!.id,
+        quantidade: 1,
+        dadosReceita: {
+          numero: 'B1-789456',
+          medico: 'Dr. Silva',
+          crm: '12345/SP',
+          dataReceita: new Date()
+        },
+        farmaceuticoId: farmaceutico!.id
+      });
+
+      const historico = await clienteService.obterHistoricoControlados(cliente.id, 90); // Últimos 90 dias
+
+      expect(historico).toHaveLength(1);
+      expect(historico[0]).toHaveProperty('produtoNome');
+      expect(historico[0]).toHaveProperty('dadosReceita');
+      expect(historico[0].dadosReceita.numero).toBe('B1-789456');
+    });
+
+    it('deve alertar sobre possível uso inadequado', async () => {
+      const farmaceutico = TestHelpers.getPharmacist();
+      const produtoControlado = TestHelpers.getControlledProduct();
+
+      // Cliente com histórico
+      const cliente = await clienteService.criarCliente({
+        nome: 'Maria Alerta',
+        cpf: '555.666.777-88',
+        telefone: '(11) 94444-5555',
+        usuarioCadastro: farmaceutico!.id
+      });
+
+      // Primeira compra
+      await clienteService.registrarCompraControlada({
+        clienteId: cliente.id,
+        produtoId: produtoControlado!.id,
+        quantidade: 1,
+        dadosReceita: {
+          numero: 'B1-001',
+          medico: 'Dr. A',
+          crm: '111/SP',
+          dataReceita: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) // 5 dias atrás
+        },
+        farmaceuticoId: farmaceutico!.id
+      });
+
+      // Segunda compra muito próxima - deve alertar
+      await expect(async () => {
+        await clienteService.registrarCompraControlada({
+          clienteId: cliente.id,
+          produtoId: produtoControlado!.id,
+          quantidade: 2,
+          dadosReceita: {
+            numero: 'B1-002',
+            medico: 'Dr. B', // Médico diferente
+            crm: '222/SP',
+            dataReceita: new Date()
+          },
+          farmaceuticoId: farmaceutico!.id
+        });
+      }).rejects.toThrow('Alerta: Cliente possui compra recente do mesmo medicamento com prescritor diferente');
+    });
+
+    it('deve controlar limite mensal de psicotrópicos', async () => {
+      const farmaceutico = TestHelpers.getPharmacist();
+      const produtoControlado = TestHelpers.getControlledProduct();
+
+      const cliente = await clienteService.criarCliente({
+        nome: 'Pedro Limite',
+        cpf: '999.888.777-66',
+        telefone: '(11) 92222-3333',
+        usuarioCadastro: farmaceutico!.id
+      });
+
+      // Simular múltiplas compras no mês
+      for (let i = 1; i <= 3; i++) {
+        await clienteService.registrarCompraControlada({
+          clienteId: cliente.id,
+          produtoId: produtoControlado!.id,
+          quantidade: 1,
+          dadosReceita: {
+            numero: `B1-${String(i).padStart(3, '0')}`,
+            medico: 'Dr. Silva',
+            crm: '12345/SP',
+            dataReceita: new Date(Date.now() - (30 - i * 10) * 24 * 60 * 60 * 1000)
+          },
+          farmaceuticoId: farmaceutico!.id
+        });
+      }
+
+      // Quarta compra deve alertar sobre limite
+      const analiseRisco = await clienteService.analisarRiscoCompra({
+        clienteId: cliente.id,
+        produtoId: produtoControlado!.id,
+        quantidade: 1
+      });
+
+      expect(analiseRisco.nivelRisco).toBe('ALTO');
+      expect(analiseRisco.alertas).toContain('LIMITE_MENSAL_PROXIMO');
+      expect(analiseRisco.recomendacao).toContain('consultar histórico médico');
+    });
+  });
+
+  describe('Fidelidade e Relacionamento', () => {
+    it('deve calcular pontos de fidelidade corretamente', async () => {
+      const vendedor = TestHelpers.getSeller();
+
+      const cliente = await clienteService.criarCliente({
+        nome: 'Cliente Fiel',
+        telefone: '(11) 91111-1111',
+        usuarioCadastro: vendedor!.id,
+        programaFidelidade: true
+      });
+
+      // Simular compras
+      await clienteService.adicionarPontos({
+        clienteId: cliente.id,
+        valorCompra: 150.00,
+        tipoTransacao: 'COMPRA_MEDICAMENTO'
+      });
+
+      await clienteService.adicionarPontos({
+        clienteId: cliente.id,
+        valorCompra: 85.50,
+        tipoTransacao: 'COMPRA_COSMETICO'
+      });
+
+      const saldoAtual = await clienteService.obterSaldoPontos(cliente.id);
+
+      expect(saldoAtual.pontos).toBeGreaterThan(0);
+      expect(saldoAtual.historico).toHaveLength(2);
+      expect(saldoAtual.nivelCliente).toBe('BRONZE'); // Baseado no total de pontos
+    });
+
+    it('deve gerenciar inadimplência de forma responsável', async () => {
+      const gerente = TestHelpers.findUserByType('GERENTE' as any);
+
+      const cliente = await clienteService.criarCliente({
+        nome: 'Cliente Inadimplente',
+        cpf: '444.555.666-77',
+        telefone: '(11) 93333-4444',
+        usuarioCadastro: gerente!.id
+      });
+
+      // Registrar inadimplência
+      await clienteService.registrarInadimplencia({
+        clienteId: cliente.id,
+        valorDevido: 350.00,
+        dataVencimento: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), // 15 dias atrás
+        tipoDebito: 'VENDA_PRAZO',
+        observacoes: 'Venda parcelada vencida'
+      });
+
+      const statusCliente = await clienteService.verificarStatusCredito(cliente.id);
+
+      expect(statusCliente.situacao).toBe('INADIMPLENTE');
+      expect(statusCliente.valorDevido).toBe(350.00);
+      expect(statusCliente.diasAtraso).toBeGreaterThanOrEqual(15);
+      expect(statusCliente.permitirVendaPrazo).toBe(false);
+      expect(statusCliente.permitirVendaVista).toBe(true); // Não bloqueia vendas à vista
+    });
+  });
+
+  describe('Proteção de Dados e Privacidade', () => {
+    it('deve permitir alteração de consentimento LGPD', async () => {
+      const farmaceutico = TestHelpers.getPharmacist();
+
+      const cliente = await clienteService.criarCliente({
+        nome: 'Cliente LGPD',
+        cpf: '123.123.123-12',
+        telefone: '(11) 95555-6666',
+        email: 'lgpd@teste.com',
+        consentimentoLGPD: {
+          dataConsentimento: new Date(),
+          finalidades: ['DISPENSACAO_MEDICAMENTOS'],
+          versaoTermos: '1.0'
+        },
+        usuarioCadastro: farmaceutico!.id
+      });
+
+      // Cliente solicita alteração de consentimento
+      const novoConsentimento = await clienteService.atualizarConsentimento({
+        clienteId: cliente.id,
+        novasFinalidades: [
+          'DISPENSACAO_MEDICAMENTOS',
+          'HISTORICO_COMPRAS'
+        ],
+        revogarFinalidades: ['COMUNICACAO_PROMOCIONAL'],
+        versaoTermos: '1.1'
+      });
+
+      expect(novoConsentimento.finalidadesAtivas).toHaveLength(2);
+      expect(novoConsentimento.finalidadesRevogadas).toContain('COMUNICACAO_PROMOCIONAL');
+      expect(novoConsentimento.historicoAlteracoes).toBeDefined();
+    });
+
+    it('deve processar solicitação de exclusão (direito ao esquecimento)', async () => {
+      const farmaceutico = TestHelpers.getPharmacist();
+
+      const cliente = await clienteService.criarCliente({
+        nome: 'Cliente Exclusão',
+        cpf: '888.999.000-11',
+        telefone: '(11) 97777-8888',
+        usuarioCadastro: farmaceutico!.id
+      });
+
+      // Cliente solicita exclusão
+      const solicitacao = await clienteService.solicitarExclusao({
+        clienteId: cliente.id,
+        motivo: 'Não utiliza mais os serviços',
+        solicitanteCpf: '888.999.000-11',
+        confirmacao: true
+      });
+
+      expect(solicitacao.protocolo).toBeDefined();
+      expect(solicitacao.status).toBe('EM_ANALISE');
+      expect(solicitacao.prazoExecucao).toBe(15); // Dias úteis conforme LGPD
+
+      // Processar exclusão
+      const exclusao = await clienteService.processarExclusao({
+        protocoloSolicitacao: solicitacao.protocolo,
+        analistaResponsavel: farmaceutico!.id,
+        decisao: 'APROVADA',
+        observacoes: 'Cliente sem pendências. Exclusão autorizada.'
+      });
+
+      expect(exclusao.status).toBe('EXECUTADA');
+      expect(exclusao.dataExecucao).toBeInstanceOf(Date);
+      expect(exclusao.dadosAnonimizados).toBe(true);
+    });
+
+    it('deve manter dados essenciais para compliance farmacêutico', async () => {
+      const farmaceutico = TestHelpers.getPharmacist();
+      const produtoControlado = TestHelpers.getControlledProduct();
+
+      const cliente = await clienteService.criarCliente({
+        nome: 'Cliente Controlado',
+        cpf: '777.888.999-00',
+        telefone: '(11) 96666-7777',
+        usuarioCadastro: farmaceutico!.id
+      });
+
+      // Registrar compra controlada
+      await clienteService.registrarCompraControlada({
+        clienteId: cliente.id,
+        produtoId: produtoControlado!.id,
+        quantidade: 1,
+        dadosReceita: {
+          numero: 'B1-COMPLIANCE',
+          medico: 'Dr. Compliance',
+          crm: '99999/SP',
+          dataReceita: new Date()
+        },
+        farmaceuticoId: farmaceutico!.id
+      });
+
+      // Solicitar exclusão
+      const solicitacao = await clienteService.solicitarExclusao({
+        clienteId: cliente.id,
+        motivo: 'Exclusão solicitada',
+        solicitanteCpf: '777.888.999-00'
+      });
+
+      // Analisar exclusão
+      const analise = await clienteService.analisarSolicitacaoExclusao(solicitacao.protocolo);
+
+      expect(analise.podeExcluir).toBe(false);
+      expect(analise.motivoImpedimento).toContain('medicamentos controlados');
+      expect(analise.prazoRetencaoMinimo).toBe(5); // Anos
+      expect(analise.dadosEssenciais).toContain('CPF');
+      expect(analise.dadosEssenciais).toContain('histórico_controlados');
+    });
+  });
+
+  describe('Relatórios e Analytics', () => {
+    it('deve gerar relatório demográfico respeitando privacidade', async () => {
+      const gerente = TestHelpers.findUserByType('GERENTE' as any);
+
+      // Criar clientes de diferentes perfis
+      await Promise.all([
+        clienteService.criarCliente({
+          nome: 'Cliente A',
+          idade: 35,
+          sexo: 'M',
+          cidade: 'São Paulo',
+          usuarioCadastro: gerente!.id
+        }),
+        clienteService.criarCliente({
+          nome: 'Cliente B',
+          idade: 45,
+          sexo: 'F',
+          cidade: 'Rio de Janeiro',
+          usuarioCadastro: gerente!.id
+        }),
+        clienteService.criarCliente({
+          nome: 'Cliente C',
+          idade: 28,
+          sexo: 'F',
+          cidade: 'São Paulo',
+          usuarioCadastro: gerente!.id
+        })
+      ]);
+
+      const relatorio = await clienteService.gerarRelatorioDemografico({
+        periodo: '2024-01',
+        anonimizado: true,
+        incluirCidades: ['São Paulo', 'Rio de Janeiro']
+      });
+
+      expect(relatorio.totalClientes).toBe(3);
+      expect(relatorio.porSexo.M).toBe(1);
+      expect(relatorio.porSexo.F).toBe(2);
+      expect(relatorio.porCidade['São Paulo']).toBe(2);
+      expect(relatorio.dadosAnonimizados).toBe(true);
+      // Não deve conter dados pessoais
+      expect(relatorio).not.toHaveProperty('nomes');
+      expect(relatorio).not.toHaveProperty('cpfs');
+    });
+  });
+});

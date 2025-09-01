@@ -1,0 +1,473 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id                String                @id @default(uuid())
+  nome              String                @db.VarChar(100)
+  login             String                @unique @db.VarChar(50)
+  senhaHash         String                @map("senha_hash") @db.VarChar(255)
+  tipo              TipoUsuario           @default(VENDEDOR)
+  ativo             Boolean               @default(true)
+  ultimoLogin       DateTime?             @map("ultimo_login")
+  criadoEm          DateTime              @default(now()) @map("criado_em")
+  atualizadoEm      DateTime              @updatedAt @map("atualizado_em")
+  historicoCredito  HistoricoCredito[]
+  movimentacoes     MovimentacaoEstoque[]
+  movimentacoesLote MovimentacaoLote[]
+  refreshTokens     RefreshToken[]
+  vendas            Venda[]
+  pedidos           Pedido[]
+  recebimentos      Recebimento[]
+  conferencias      ConferenciaMercadoria[]
+  conferenciasAprovadas ConferenciaMercadoria[] @relation("ConferenciaAprovador")
+
+  @@map("usuarios")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  usuarioId String   @map("usuario_id")
+  expiresEm DateTime @map("expires_em")
+  criadoEm  DateTime @default(now()) @map("criado_em")
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model Cliente {
+  id                String             @id @default(uuid())
+  nome              String             @db.VarChar(100)
+  documento         String?            @unique @db.VarChar(18)
+  tipoDocumento     String?            @map("tipo_documento") @db.VarChar(12)
+  email             String?            @db.VarChar(150)
+  telefone          String?            @db.VarChar(15)
+  endereco          String?
+  limiteCredito     Decimal            @default(0) @map("limite_credito") @db.Decimal(10, 2)
+  creditoDisponivel Decimal            @default(0) @map("credito_disponivel") @db.Decimal(10, 2)
+  creditoHabilitado Boolean            @default(false) @map("credito_habilitado")
+  ativo             Boolean            @default(true)
+  criadoEm          DateTime           @default(now()) @map("criado_em")
+  atualizadoEm      DateTime           @updatedAt @map("atualizado_em")
+  historicoCredito  HistoricoCredito[]
+  vendas            Venda[]
+
+  @@map("clientes")
+}
+
+model Categoria {
+  id           String    @id @default(uuid())
+  nome         String    @db.VarChar(100)
+  descricao    String?
+  ativo        Boolean   @default(true)
+  criadoEm     DateTime  @default(now()) @map("criado_em")
+  atualizadoEm DateTime  @updatedAt @map("atualizado_em")
+  produtos     Produto[]
+
+  @@map("categorias")
+}
+
+model Produto {
+  id                  String                @id @default(uuid())
+  nome                String                @db.VarChar(200)
+  descricao           String?
+  codigoBarras        String?               @unique @map("codigo_barras") @db.VarChar(50)
+  classificacaoAnvisa String                @map("classificacao_anvisa") @db.VarChar(50)
+  categoriaAnvisa     String?               @map("categoria_anvisa") @db.VarChar(100)
+  registroAnvisa      String?               @map("registro_anvisa") @db.VarChar(50)
+  exigeReceita        Boolean               @default(false) @map("exige_receita")
+  tipoReceita         String?               @map("tipo_receita") @db.VarChar(20)
+  classeControlada    String?               @map("classe_controlada") @db.VarChar(10)
+  retencaoReceita     Boolean               @default(false) @map("retencao_receita")
+  principioAtivo      String?               @map("principio_ativo") @db.VarChar(200)
+  laboratorio         String?               @db.VarChar(100)
+  peso                Decimal?              @db.Decimal(8, 3)
+  volume              Decimal?              @db.Decimal(8, 2)
+  dosagem             String?               @db.VarChar(50)
+  formaFarmaceutica   String?               @map("forma_farmaceutica") @db.VarChar(50)
+  dataVencimento      DateTime?             @map("data_vencimento")
+  lote                String?               @db.VarChar(50)
+  precoVenda          Decimal               @map("preco_venda") @db.Decimal(10, 2)
+  precoCusto          Decimal?              @map("preco_custo") @db.Decimal(10, 2)
+  margem              Decimal?              @db.Decimal(5, 2)
+  estoque             Int                   @default(0)
+  estoqueMinimo       Int                   @default(0) @map("estoque_minimo")
+  estoqueMaximo       Int?                  @map("estoque_maximo")
+  categoriaId         String                @map("categoria_id")
+  ativo               Boolean               @default(true)
+  criadoEm            DateTime              @default(now()) @map("criado_em")
+  atualizadoEm        DateTime              @updatedAt @map("atualizado_em")
+  itensVenda          ItemVenda[]
+  lotes               Lote[]
+  movimentacoes       MovimentacaoEstoque[]
+  produtoFornecedores ProdutoFornecedor[]
+  categoria           Categoria             @relation(fields: [categoriaId], references: [id])
+  itensPedido         ItemPedido[]
+  itensRecebimento    ItemRecebimento[]
+  promocoes           Promocao[]
+
+  @@map("produtos")
+}
+
+model Venda {
+  id                       String             @id @default(uuid())
+  clienteId                String?            @map("cliente_id")
+  usuarioId                String             @map("usuario_id")
+  clienteNome              String?            @map("cliente_nome") @db.VarChar(100)
+  clienteDocumento         String?            @map("cliente_documento") @db.VarChar(18)
+  clienteTipoDocumento     String?            @map("cliente_tipo_documento") @db.VarChar(4)
+  pacienteNome             String?            @map("paciente_nome") @db.VarChar(100)
+  pacienteDocumento        String?            @map("paciente_documento") @db.VarChar(18) // CPF
+  pacienteTipoDocumento    String?            @map("paciente_tipo_documento") @db.VarChar(4)
+  pacienteRg               String?            @map("paciente_rg") @db.VarChar(20)
+  pacienteEndereco         String?            @map("paciente_endereco")
+  valorTotal               Decimal            @map("valor_total") @db.Decimal(10, 2)
+  valorDesconto            Decimal            @default(0) @map("valor_desconto") @db.Decimal(10, 2)
+  valorFinal               Decimal            @map("valor_final") @db.Decimal(10, 2)
+  formaPagamento           String             @map("forma_pagamento") @db.VarChar(20)
+  statusPagamento          String             @default("PENDENTE") @map("status_pagamento") @db.VarChar(20)
+  temMedicamentoControlado Boolean            @default(false) @map("tem_medicamento_controlado")
+  receitaArquivada         Boolean            @default(false) @map("receita_arquivada")
+  numeroReceita            String?            @map("numero_receita") @db.VarChar(50)
+  dataReceita              String?            @map("data_receita") @db.VarChar(20)
+  observacoes              String?
+  criadoEm                 DateTime           @default(now()) @map("criado_em")
+  atualizadoEm             DateTime           @updatedAt @map("atualizado_em")
+  itens                    ItemVenda[]
+  movimentacoesLote        MovimentacaoLote[]
+  cliente                  Cliente?           @relation(fields: [clienteId], references: [id])
+  usuario                  Usuario            @relation(fields: [usuarioId], references: [id])
+
+  @@map("vendas")
+}
+
+model ItemVenda {
+  id            String          @id @default(uuid())
+  vendaId       String          @map("venda_id")
+  produtoId     String          @map("produto_id")
+  quantidade    Int
+  precoUnitario Decimal         @map("preco_unitario") @db.Decimal(10, 2)
+  desconto      Decimal         @default(0) @db.Decimal(10, 2)
+  total         Decimal         @db.Decimal(10, 2)
+  produto       Produto         @relation(fields: [produtoId], references: [id])
+  venda         Venda           @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  lotes         ItemVendaLote[]
+
+  @@map("item_venda")
+}
+
+model HistoricoCredito {
+  id        String   @id @default(uuid())
+  clienteId String   @map("cliente_id")
+  tipo      String   @db.VarChar(20)
+  valor     Decimal  @db.Decimal(10, 2)
+  descricao String?
+  usuarioId String   @map("usuario_id")
+  criadoEm  DateTime @default(now()) @map("criado_em")
+  cliente   Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+
+  @@map("historico_credito")
+}
+
+model MovimentacaoEstoque {
+  id         String   @id @default(uuid())
+  produtoId  String   @map("produto_id")
+  tipo       String   @db.VarChar(20)
+  quantidade Int
+  motivo     String   @db.VarChar(200)
+  usuarioId  String   @map("usuario_id")
+  criadoEm   DateTime @default(now()) @map("criado_em")
+  produto    Produto  @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id])
+
+  @@map("movimentacao_estoque")
+}
+
+model Fornecedor {
+  id                    String              @id @default(uuid())
+  nome                  String              @db.VarChar(100)
+  cnpj                  String              @unique @db.VarChar(18)
+  email                 String?             @db.VarChar(150)
+  telefone              String?             @db.VarChar(15)
+  endereco              String?
+  representanteNome     String?             @map("representante_nome") @db.VarChar(100)
+  representanteTelefone String?             @map("representante_telefone") @db.VarChar(15)
+  representanteEmail    String?             @map("representante_email") @db.VarChar(150)
+  ativo                 Boolean             @default(true)
+  criadoEm              DateTime            @default(now()) @map("criado_em")
+  atualizadoEm          DateTime            @updatedAt @map("atualizado_em")
+  lotes                 Lote[]
+  notasFiscais          NotaFiscal[]
+  produtos              ProdutoFornecedor[]
+  pedidos               Pedido[]
+
+  @@map("fornecedores")
+}
+
+model ProdutoFornecedor {
+  id           String     @id @default(uuid())
+  produtoId    String     @map("produto_id")
+  fornecedorId String     @map("fornecedor_id")
+  precoCusto   Decimal    @map("preco_custo") @db.Decimal(10, 2)
+  prazoEntrega Int        @map("prazo_entrega")
+  ativo        Boolean    @default(true)
+  criadoEm     DateTime   @default(now()) @map("criado_em")
+  atualizadoEm DateTime   @updatedAt @map("atualizado_em")
+  fornecedor   Fornecedor @relation(fields: [fornecedorId], references: [id], onDelete: Cascade)
+  produto      Produto    @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  @@unique([produtoId, fornecedorId])
+  @@map("produto_fornecedor")
+}
+
+model NotaFiscal {
+  id           String     @id @default(uuid())
+  fornecedorId String     @map("fornecedor_id")
+  numero       String     @db.VarChar(50)
+  serie        String     @db.VarChar(10)
+  chaveAcesso  String?    @map("chave_acesso") @db.VarChar(44)
+  valorTotal   Decimal    @map("valor_total") @db.Decimal(10, 2)
+  dataEmissao  DateTime   @map("data_emissao")
+  processada   Boolean    @default(false)
+  criadoEm     DateTime   @default(now()) @map("criado_em")
+  fornecedor   Fornecedor @relation(fields: [fornecedorId], references: [id], onDelete: Cascade)
+
+  @@unique([numero, serie, fornecedorId])
+  @@map("notas_fiscais")
+}
+
+
+
+model Lote {
+  id                  String             @id @default(uuid())
+  produtoId           String             @map("produto_id")
+  numeroLote          String             @map("numero_lote") @db.VarChar(50)
+  codigoBarrasLote    String?            @map("codigo_barras_lote") @db.VarChar(50)
+  dataFabricacao      DateTime           @map("data_fabricacao")
+  dataValidade        DateTime           @map("data_validade")
+  quantidadeInicial   Int                @map("quantidade_inicial")
+  quantidadeAtual     Int                @map("quantidade_atual")
+  quantidadeReservada Int                @default(0) @map("quantidade_reservada")
+  precoCusto          Decimal            @map("preco_custo") @db.Decimal(10, 2)
+  fornecedorId        String?            @map("fornecedor_id")
+  observacoes         String?
+  ativo               Boolean            @default(true)
+  criadoEm            DateTime           @default(now()) @map("criado_em")
+  atualizadoEm        DateTime           @updatedAt @map("atualizado_em")
+  itensVenda          ItemVendaLote[]
+  fornecedor          Fornecedor?        @relation(fields: [fornecedorId], references: [id])
+  produto             Produto            @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  movimentacoes       MovimentacaoLote[]
+
+  @@unique([produtoId, numeroLote])
+  @@map("lotes")
+}
+
+model MovimentacaoLote {
+  id         String   @id @default(uuid())
+  loteId     String   @map("lote_id")
+  tipo       String   @db.VarChar(20)
+  quantidade Int
+  motivo     String   @db.VarChar(200)
+  usuarioId  String   @map("usuario_id")
+  vendaId    String?  @map("venda_id")
+  criadoEm   DateTime @default(now()) @map("criado_em")
+  lote       Lote     @relation(fields: [loteId], references: [id], onDelete: Cascade)
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id])
+  venda      Venda?   @relation(fields: [vendaId], references: [id])
+
+  @@map("movimentacao_lote")
+}
+
+model ItemVendaLote {
+  id          String    @id @default(uuid())
+  itemVendaId String    @map("item_venda_id")
+  loteId      String    @map("lote_id")
+  quantidade  Int
+  itemVenda   ItemVenda @relation(fields: [itemVendaId], references: [id], onDelete: Cascade)
+  lote        Lote      @relation(fields: [loteId], references: [id])
+
+  @@map("item_venda_lote")
+}
+
+enum TipoUsuario {
+  ADMINISTRADOR
+  GERENTE
+  FARMACEUTICO
+  VENDEDOR
+  PDV
+}
+
+enum TipoPromocao {
+  FIXO
+  PORCENTAGEM
+}
+
+enum CondicaoTermino {
+  ATE_ACABAR_ESTOQUE
+  QUANTIDADE_LIMITADA
+}
+
+enum StatusPedido {
+  RASCUNHO
+  ENVIADO
+  CONFIRMADO
+  PARCIALMENTE_RECEBIDO
+  RECEBIDO
+  FINALIZADO
+  CANCELADO
+}
+
+enum StatusRecebimento {
+  AGUARDANDO_CONFERENCIA
+  EM_CONFERENCIA
+  CONFERIDO
+  APROVADO
+  REJEITADO
+  FINALIZADO
+}
+
+enum StatusConferencia {
+  PENDENTE
+  EM_ANDAMENTO
+  CONFERIDO
+  COM_DIVERGENCIA
+  APROVADO
+  REJEITADO
+}
+
+model Pedido {
+  id                   String           @id @default(uuid())
+  numeroPedido         String           @unique @map("numero_pedido") @db.VarChar(20)
+  fornecedorId         String           @map("fornecedor_id")
+  usuarioId            String           @map("usuario_id")
+  dataEmissao          DateTime         @map("data_emissao")
+  dataPrevisaoEntrega  DateTime?        @map("data_previsao_entrega")
+  observacoes          String?
+  status               StatusPedido     @default(RASCUNHO)
+  valorTotal           Decimal          @map("valor_total") @db.Decimal(10, 2)
+  ativo                Boolean          @default(true)
+  criadoEm             DateTime         @default(now()) @map("criado_em")
+  atualizadoEm         DateTime         @updatedAt @map("atualizado_em")
+  fornecedor           Fornecedor       @relation(fields: [fornecedorId], references: [id])
+  usuario              Usuario          @relation(fields: [usuarioId], references: [id])
+  itens                ItemPedido[]
+  recebimentos         Recebimento[]
+
+  @@map("pedidos")
+}
+
+model ItemPedido {
+  id                  String            @id @default(uuid())
+  pedidoId            String            @map("pedido_id")
+  produtoId           String            @map("produto_id")
+  quantidade          Int
+  precoUnitario       Decimal           @map("preco_unitario") @db.Decimal(10, 2)
+  subtotal            Decimal           @db.Decimal(10, 2)
+  quantidadeRecebida  Int               @default(0) @map("quantidade_recebida")
+  quantidadePendente  Int               @map("quantidade_pendente")
+  nomeProduto         String            @map("nome_produto") @db.VarChar(200)
+  codigoBarras        String?           @map("codigo_barras") @db.VarChar(50)
+  criadoEm            DateTime          @default(now()) @map("criado_em")
+  atualizadoEm        DateTime          @updatedAt @map("atualizado_em")
+  pedido              Pedido            @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  produto             Produto           @relation(fields: [produtoId], references: [id])
+  itensRecebimento    ItemRecebimento[]
+
+  @@map("itens_pedido")
+}
+
+model Recebimento {
+  id               String                @id @default(uuid())
+  pedidoId         String                @map("pedido_id")
+  usuarioId        String                @map("usuario_id")
+  numeroNotaFiscal String                @map("numero_nota_fiscal") @db.VarChar(50)
+  dataEmissaoNF    DateTime              @map("data_emissao_nf")
+  valorTotalNF     Decimal               @map("valor_total_nf") @db.Decimal(10, 2)
+  dataRecebimento  DateTime              @map("data_recebimento")
+  status           StatusRecebimento     @default(AGUARDANDO_CONFERENCIA)
+  observacoes      String?
+  ativo            Boolean               @default(true)
+  criadoEm         DateTime              @default(now()) @map("criado_em")
+  atualizadoEm     DateTime              @updatedAt @map("atualizado_em")
+  pedido           Pedido                @relation(fields: [pedidoId], references: [id])
+  usuario          Usuario               @relation(fields: [usuarioId], references: [id])
+  itensRecebidos   ItemRecebimento[]
+  conferencias     ConferenciaMercadoria[]
+
+  @@map("recebimentos")
+}
+
+model ItemRecebimento {
+  id                  String            @id @default(uuid())
+  recebimentoId       String            @map("recebimento_id")
+  itemPedidoId        String            @map("item_pedido_id")
+  produtoId           String            @map("produto_id")
+  quantidadePedida    Int               @map("quantidade_pedida")
+  quantidadeRecebida  Int               @map("quantidade_recebida")
+  quantidadeConferida Int               @default(0) @map("quantidade_conferida")
+  quantidadeAprovada  Int               @default(0) @map("quantidade_aprovada")
+  lote                String?           @db.VarChar(50)
+  dataVencimento      DateTime?         @map("data_vencimento")
+  precoUnitario       Decimal           @map("preco_unitario") @db.Decimal(10, 2)
+  statusConferencia   StatusConferencia @default(PENDENTE) @map("status_conferencia")
+  divergencias        Json?             @db.Json
+  nomeProduto         String            @map("nome_produto") @db.VarChar(200)
+  codigoBarras        String?           @map("codigo_barras") @db.VarChar(50)
+  criadoEm            DateTime          @default(now()) @map("criado_em")
+  atualizadoEm        DateTime          @updatedAt @map("atualizado_em")
+  recebimento         Recebimento       @relation(fields: [recebimentoId], references: [id], onDelete: Cascade)
+  itemPedido          ItemPedido        @relation(fields: [itemPedidoId], references: [id])
+  produto             Produto           @relation(fields: [produtoId], references: [id])
+
+  @@map("itens_recebimento")
+}
+
+model ConferenciaMercadoria {
+  id                     String            @id @default(uuid())
+  recebimentoId          String            @map("recebimento_id")
+  usuarioId              String            @map("usuario_id")
+  dataConferencia        DateTime          @map("data_conferencia")
+  status                 StatusConferencia @default(PENDENTE)
+  observacoes            String?
+  divergenciasEncontradas Json?            @map("divergencias_encontradas") @db.Json
+  aprovadoPor            String?           @map("aprovado_por")
+  dataAprovacao          DateTime?         @map("data_aprovacao")
+  motivoRejeicao         String?           @map("motivo_rejeicao")
+  criadoEm               DateTime          @default(now()) @map("criado_em")
+  atualizadoEm           DateTime          @updatedAt @map("atualizado_em")
+  recebimento            Recebimento       @relation(fields: [recebimentoId], references: [id], onDelete: Cascade)
+  usuario                Usuario           @relation(fields: [usuarioId], references: [id])
+  aprovador              Usuario?          @relation("ConferenciaAprovador", fields: [aprovadoPor], references: [id])
+
+  @@map("conferencias_mercadoria")
+}
+
+model Promocao {
+  id                    String          @id @default(uuid())
+  nome                  String          @db.VarChar(200)
+  descricao             String?
+  produtoId             String          @map("produto_id")
+  tipo                  TipoPromocao
+  valorDesconto         Decimal?        @map("valor_desconto") @db.Decimal(10, 2)
+  porcentagemDesconto   Decimal?        @map("porcentagem_desconto") @db.Decimal(5, 2)
+  precoPromocional      Decimal?        @map("preco_promocional") @db.Decimal(10, 2)
+  condicaoTermino       CondicaoTermino @map("condicao_termino")
+  quantidadeMaxima      Int?            @map("quantidade_maxima")
+  quantidadeVendida     Int             @default(0) @map("quantidade_vendida")
+  dataInicio            DateTime        @map("data_inicio")
+  dataFim               DateTime        @map("data_fim")
+  ativo                 Boolean         @default(true)
+  criadoEm              DateTime        @default(now()) @map("criado_em")
+  atualizadoEm          DateTime        @updatedAt @map("atualizado_em")
+  produto               Produto         @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  @@map("promocoes")
+}

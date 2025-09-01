@@ -1,0 +1,95 @@
+# Permitir apenas arquivos de exemplo de ambiente
+*
+!.env.example
+!env.example
+
+# Permitir arquivos essenciais do projeto
+!.gitignore
+!package.json
+!package-lock.json
+!tsconfig.json
+!jest.config.js
+!tsx.config.js
+
+# Permitir código-fonte
+!src/
+!src/**
+!prisma/schema.prisma
+!uploads/.gitkeep
+
+# Ignorar node_modules
+node_modules/
+jspm_packages/
+
+# Ignorar arquivos de ambiente
+.env
+.env.*
+!.env.example
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# Ignorar arquivos de build e cache
+dist/
+build/
+build/Release
+.cache/
+.parcel-cache
+
+# Ignorar arquivos de log
+*.log
+logs/
+/logs/
+./logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Ignorar arquivos temporários
+.temp/
+.tmp/
+tmp/
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+**/*.backup.*
+**/*.back.*
+
+# Ignorar arquivos de IDE e editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.vscode-test
+
+# Ignorar arquivos de sistema operacional
+.DS_Store
+Thumbs.db
+
+# Ignorar arquivos de relatórios e cobertura
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+coverage
+*.lcov
+.nyc_output
+
+# Ignorar arquivos de cache
+*.tsbuildinfo
+.npm
+.eslintcache
+.stylelintcache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+.node_repl_history
+
+# Ignorar arquivos de pacote
+*.tgz
+.yarn-integrity
+# Ignorar arquivos de banco de dados de desenvolvimento
+prisma/migrations/dev.db*

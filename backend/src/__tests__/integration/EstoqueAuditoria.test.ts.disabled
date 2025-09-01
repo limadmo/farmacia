@@ -1,0 +1,446 @@
+/**
+ * Testes de Auditoria e Rastreabilidade de Estoque
+ * Validação de compliance com ANVISA RDC 222/2018 e Boas Práticas
+ */
+
+import { TipoMovimentacao } from '@prisma/client';
+import { EstoqueService } from '@/application/services/EstoqueService';
+import { AuditoriaService } from '@/application/services/AuditoriaService';
+import { 
+  setupTestDatabase, 
+  seedTestData, 
+  cleanupTestDatabase, 
+  getTestPrisma, 
+  TestHelpers 
+} from '../setup/testDatabase';
+
+describe('Auditoria e Rastreabilidade de Estoque', () => {
+  let estoqueService: EstoqueService;
+  let auditoriaService: AuditoriaService;
+  let prisma: any;
+
+  beforeAll(async () => {
+    prisma = await setupTestDatabase();
+    await seedTestData();
+    estoqueService = new EstoqueService();
+    auditoriaService = new AuditoriaService();
+  }, 30000);
+
+  afterAll(async () => {
+    await cleanupTestDatabase();
+  }, 10000);
+
+  beforeEach(async () => {
+    // Reset estoque e limpar movimentações
+    const products = await prisma.produto.findMany();
+    for (const product of products) {
+      await prisma.produto.update({
+        where: { id: product.id },
+        data: { estoque: 100 }
+      });
+    }
+    await prisma.movimentacaoEstoque.deleteMany();
+  });
+
+  describe('Controle de Lote e Validade', () => {
+    it('deve rastrear lote em todas as movimentações', async () => {
+      const produto = TestHelpers.getCommonProduct();
+      const farmaceutico = TestHelpers.getPharmacist();
+
+      const movimentacao = await estoqueService.registrarMovimentacao({
+        produtoId: produto!.id,
+        tipo: TipoMovimentacao.ENTRADA,
+        quantidade: 50,
+        motivo: 'Recebimento fornecedor',
+        observacoes: 'Lote: L2024001 - Fabricante: EUROFARMA - Validade: 15/12/2025 - NF: 123456',
+        dadosLote: {
+          numero: 'L2024001',
+          fabricante: 'EUROFARMA',
+          dataFabricacao: new Date('2024-01-15'),
+          dataVencimento: new Date('2025-12-15'),
+          notaFiscal: '123456'
+        },
+        usuarioId: farmaceutico!.id
+      });
+
+      expect(movimentacao).toBeDefined();
+      expect(movimentacao.dadosLote).toBeDefined();
+      expect(movimentacao.dadosLote.numero).toBe('L2024001');
+      expect(movimentacao.observacoes).toContain('Lote: L2024001');
+      expect(movimentacao.observacoes).toContain('Validade: 15/12/2025');
+    });
+
+    it('deve implementar FIFO (First In, First Out)', async () => {
+      const produto = TestHelpers.getCommonProduct();
+      const farmaceutico = TestHelpers.getPharmacist();
+
+      // Entrada de lote mais antigo
+      await estoqueService.registrarMovimentacao({
+        produtoId: produto!.id,
+        tipo: TipoMovimentacao.ENTRADA,
+        quantidade: 30,
+        motivo: 'Recebimento - Lote Antigo',
+        dadosLote: {
+          numero: 'L2024001',
+          dataVencimento: new Date('2025-06-15'), // Vence primeiro
+          fabricante: 'LAB A'
+        },
+        usuarioId: farmaceutico!.id
+      });
+
+      // Entrada de lote mais novo
+      await estoqueService.registrarMovimentacao({
+        produtoId: produto!.id,
+        tipo: TipoMovimentacao.ENTRADA,
+        quantidade: 30,
+        motivo: 'Recebimento - Lote Novo',
+        dadosLote: {
+          numero: 'L2024002',
+          dataVencimento: new Date('2025-12-15'), // Vence depois
+          fabricante: 'LAB A'
+        },
+        usuarioId: farmaceutico!.id
+      });
+
+      // Saída deve priorizar lote mais antigo
+      const saida = await estoqueService.registrarSaidaFIFO({
+        produtoId: produto!.id,
+        quantidade: 20,
+        motivo: 'Venda - Aplicando FIFO',
+        usuarioId: farmaceutico!.id
+      });
+
+      expect(saida.loteUtilizado).toBe('L2024001'); // Lote mais antigo usado primeiro
+      expect(saida.dataVencimentoLote).toEqual(new Date('2025-06-15'));
+    });
+
+    it('deve alertar produtos próximos ao vencimento', async () => {
+      const produto = TestHelpers.getCommonProduct();
+      const farmaceutico = TestHelpers.getPharmacist();
+
+      // Cadastrar produto com vencimento próximo
+      await estoqueService.registrarMovimentacao({
+        produtoId: produto!.id,
+        tipo: TipoMovimentacao.ENTRADA,
+        quantidade: 25,
+        motivo: 'Produto com vencimento próximo',
+        dadosLote: {
+          numero: 'L2024PROX',
+          dataVencimento: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000), // 45 dias
+          fabricante: 'LAB TESTE'
+        },
+        usuarioId: farmaceutico!.id
+      });
+
+      const alertas = await estoqueService.obterAlertasVencimento(90); // Próximos 90 dias
+
+      expect(alertas).toHaveLength(1);
+      expect(alertas[0].lote).toBe('L2024PROX');
+      expect(alertas[0].diasParaVencer).toBeLessThanOrEqual(45);
+      expect(alertas[0].statusUrgencia).toBe('ATENCAO'); // Entre 30-90 dias
+    });
+
+    it('deve bloquear produtos vencidos', async () => {
+      const produto = TestHelpers.getCommonProduct();
+      const farmaceutico = TestHelpers.getPharmacist();
+
+      // Cadastrar produto vencido
+      await estoqueService.registrarMovimentacao({
+        produtoId: produto!.id,
+        tipo: TipoMovimentacao.ENTRADA,
+        quantidade: 10,
+        motivo: 'Produto vencido (teste)',
+        dadosLote: {
+          numero: 'L2023VENC',
+          dataVencimento: new Date('2023-12-15'), // Já vencido
+          fabricante: 'LAB TESTE'
+        },
+        usuarioId: farmaceutico!.id
+      });
+
+      // Tentar venda de produto vencido
+      await expect(async () => {
+        await estoqueService.registrarMovimentacao({
+          produtoId: produto!.id,
+          tipo: TipoMovimentacao.SAIDA,
+          quantidade: 5,
+          motivo: 'Tentativa venda produto vencido',
+          usuarioId: farmaceutico!.id
+        });
+      }).rejects.toThrow('Produto possui lotes vencidos e não pode ser dispensado');
+    });
+  });
+
+  describe('Descarte e Perdas Controladas', () => {
+    it('deve registrar descarte conforme RDC 222/2018', async () => {
+      const produtoControlado = TestHelpers.getControlledProduct();
+      const farmaceutico = TestHelpers.getPharmacist();
+
+      const descarte = await estoqueService.registrarDescarte({
+        produtoId: produtoControlado!.id,
+        quantidade: 2,
+        motivo: 'Produto vencido - RDC 222/2018',
+        tipoDescarte: 'INCINERACAO',
+        observacoes: 'Descarte autorizado ANVISA - Processo 123/2024 - Empresa XPTO Tratamento',
+        dadosLote: {
+          numero: 'L2023DESC',
+          dataVencimento: new Date('2023-10-15'),
+          fabricante: 'FARMACO SA'
+        },
+        certificadoDescarte: 'CERT-2024-001',
+        usuarioId: farmaceutico!.id
+      });
+
+      expect(descarte).toBeDefined();
+      expect(descarte.tipoDescarte).toBe('INCINERACAO');
+      expect(descarte.certificadoDescarte).toBe('CERT-2024-001');
+      expect(descarte.observacoes).toContain('RDC 222/2018');
+
+      // Verificar redução no estoque
+      const produtoAtualizado = await prisma.produto.findUnique({
+        where: { id: produtoControlado!.id }
+      });
+      expect(produtoAtualizado.estoque).toBe(98); // 100 - 2 descartados
+    });
+
+    it('deve gerar relatório de perdas para Receita Federal', async () => {
+      const produto = TestHelpers.getCommonProduct();
+      const farmaceutico = TestHelpers.getPharmacist();
+
+      // Registrar várias perdas
+      await estoqueService.registrarMovimentacao({
+        produtoId: produto!.id,
+        tipo: TipoMovimentacao.PERDA,
+        quantidade: 3,
+        motivo: 'Quebra - Embalagem danificada no transporte',
+        observacoes: 'Transportadora XYZ - Protocolo 789',
+        usuarioId: farmaceutico!.id
+      });
+
+      await estoqueService.registrarMovimentacao({
+        produtoId: produto!.id,
+        tipo: TipoMovimentacao.PERDA,
+        quantidade: 2,
+        motivo: 'Validade vencida - Produto não vendido a tempo',
+        observacoes: 'Lote L2023VEN - Vencimento 15/01/2024',
+        usuarioId: farmaceutico!.id
+      });
+
+      const dataInicio = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 dias atrás
+      const dataFim = new Date();
+
+      const relatorioRF = await estoqueService.gerarRelatorioPerdasReceita(dataInicio, dataFim);
+
+      expect(relatorioRF).toBeDefined();
+      expect(relatorioRF.totalPerdas).toBe(5);
+      expect(relatorioRF.perdas).toHaveLength(2);
+      expect(relatorioRF.valorTotal).toBeGreaterThan(0);
+      expect(relatorioRF.classificacaoPorMotivo).toHaveProperty('Quebra');
+      expect(relatorioRF.classificacaoPorMotivo).toHaveProperty('Validade vencida');
+    });
+  });
+
+  describe('Auditoria de Movimentações', () => {
+    it('deve manter trilha completa de auditoria', async () => {
+      const produto = TestHelpers.getCommonProduct();
+      const farmaceutico = TestHelpers.getPharmacist();
+      const gerente = TestHelpers.findUserByType('GERENTE' as any);
+
+      // Sequência de movimentações
+      await estoqueService.registrarMovimentacao({
+        produtoId: produto!.id,
+        tipo: TipoMovimentacao.ENTRADA,
+        quantidade: 100,
+        motivo: 'Compra inicial',
+        usuarioId: gerente!.id
+      });
+
+      await estoqueService.registrarMovimentacao({
+        produtoId: produto!.id,
+        tipo: TipoMovimentacao.SAIDA,
+        quantidade: 30,
+        motivo: 'Vendas do dia',
+        usuarioId: farmaceutico!.id
+      });
+
+      await estoqueService.registrarMovimentacao({
+        produtoId: produto!.id,
+        tipo: TipoMovimentacao.AJUSTE,
+        quantidade: -5,
+        motivo: 'Ajuste inventário',
+        usuarioId: gerente!.id
+      });
+
+      const trilhaAuditoria = await auditoriaService.obterTrilhaMovimentacoes(produto!.id);
+
+      expect(trilhaAuditoria).toHaveLength(3);
+      expect(trilhaAuditoria[0]).toHaveProperty('quantidadeAnterior');
+      expect(trilhaAuditoria[0]).toHaveProperty('quantidadeAtual');
+      expect(trilhaAuditoria[0]).toHaveProperty('usuario');
+      expect(trilhaAuditoria[0]).toHaveProperty('dataMovimentacao');
+      expect(trilhaAuditoria[0]).toHaveProperty('ip'); // Rastreamento de origem
+      expect(trilhaAuditoria[0]).toHaveProperty('hashIntegridade'); // Proteção contra alteração
+    });
+
+    it('deve detectar inconsistências no estoque', async () => {
+      const produto = TestHelpers.getCommonProduct();
+      const farmaceutico = TestHelpers.getPharmacist();
+
+      // Simular inconsistência: estoque físico diferente do sistema
+      await estoqueService.registrarMovimentacao({
+        produtoId: produto!.id,
+        tipo: TipoMovimentacao.SAIDA,
+        quantidade: 20,
+        motivo: 'Venda registrada',
+        usuarioId: farmaceutico!.id
+      });
+
+      // Estoque sistema: 80, mas inventário físico encontrou 85
+      const inconsistencias = await auditoriaService.detectarInconsistencias([{
+        produtoId: produto!.id,
+        estoqueeSistema: 80,
+        estoqueFisico: 85,
+        dataInventario: new Date()
+      }]);
+
+      expect(inconsistencias).toHaveLength(1);
+      expect(inconsistencias[0].diferenca).toBe(5);
+      expect(inconsistencias[0].tipoInconsistencia).toBe('DIFERENCA_POSITIVA');
+      expect(inconsistencias[0].requerInvestigacao).toBe(true);
+    });
+
+    it('deve gerar relatório de movimentações por usuário', async () => {
+      const produto1 = TestHelpers.getCommonProduct();
+      const produto2 = TestHelpers.getControlledProduct();
+      const farmaceutico = TestHelpers.getPharmacist();
+      const vendedor = TestHelpers.getSeller();
+
+      // Movimentações por diferentes usuários
+      await estoqueService.registrarMovimentacao({
+        produtoId: produto1!.id,
+        tipo: TipoMovimentacao.SAIDA,
+        quantidade: 10,
+        motivo: 'Venda farmacêutico',
+        usuarioId: farmaceutico!.id
+      });
+
+      await estoqueService.registrarMovimentacao({
+        produtoId: produto2!.id,
+        tipo: TipoMovimentacao.ENTRADA,
+        quantidade: 15,
+        motivo: 'Recebimento',
+        usuarioId: vendedor!.id
+      });
+
+      const relatorioUsuario = await auditoriaService.gerarRelatorioMovimentacoesPorUsuario(
+        farmaceutico!.id,
+        new Date(Date.now() - 24 * 60 * 60 * 1000), // Ontem
+        new Date() // Hoje
+      );
+
+      expect(relatorioUsuario).toBeDefined();
+      expect(relatorioUsuario.usuario.nome).toBe(farmaceutico!.nome);
+      expect(relatorioUsuario.movimentacoes).toHaveLength(1);
+      expect(relatorioUsuario.resumo.totalMovimentacoes).toBe(1);
+      expect(relatorioUsuario.resumo.porTipo.SAIDA).toBe(1);
+    });
+  });
+
+  describe('Inventário e Controle Físico', () => {
+    it('deve processar inventário rotativo', async () => {
+      const produtos = [
+        TestHelpers.getCommonProduct(),
+        TestHelpers.getControlledProduct()
+      ];
+      const gerente = TestHelpers.findUserByType('GERENTE' as any);
+
+      const contagemInventario = [
+        { produtoId: produtos[0]!.id, quantidadeFisica: 98 }, // Sistema: 100
+        { produtoId: produtos[1]!.id, quantidadeFisica: 102 } // Sistema: 100
+      ];
+
+      const resultadoInventario = await estoqueService.processarInventario({
+        tipoInventario: 'ROTATIVO',
+        dataInventario: new Date(),
+        contagens: contagemInventario,
+        usuarioResponsavel: gerente!.id,
+        observacoes: 'Inventário rotativo semanal - Setor A'
+      });
+
+      expect(resultadoInventario).toBeDefined();
+      expect(resultadoInventario.diferencasEncontradas).toBe(2);
+      expect(resultadoInventario.ajustesNecessarios).toHaveLength(2);
+      
+      // Primeiro produto: diferença -2
+      expect(resultadoInventario.ajustesNecessarios[0].diferenca).toBe(-2);
+      // Segunda produto: diferença +2
+      expect(resultadoInventario.ajustesNecessarios[1].diferenca).toBe(2);
+    });
+
+    it('deve exigir dupla conferência para grandes diferenças', async () => {
+      const produto = TestHelpers.getCommonProduct();
+      const gerente1 = TestHelpers.findUserByType('GERENTE' as any);
+      const gerente2 = TestHelpers.findUserByType('ADMINISTRADOR' as any);
+
+      // Grande diferença encontrada (mais de 10%)
+      const grandeInventario = await estoqueService.iniciarInventarioEspecial({
+        produtoId: produto!.id,
+        quantidadeEncontrada: 70, // Sistema: 100, diferença de 30
+        usuarioPrimeiraContagem: gerente1!.id,
+        motivo: 'Diferença significativa encontrada'
+      });
+
+      expect(grandeInventario.statusAprovacao).toBe('AGUARDANDO_SEGUNDA_CONTAGEM');
+      expect(grandeInventario.percentualDiferenca).toBe(30);
+
+      // Segunda contagem confirma
+      const inventarioConfirmado = await estoqueService.confirmarSegundaContagem({
+        inventarioId: grandeInventario.id,
+        quantidadeConfirmacao: 71, // Próximo da primeira contagem
+        usuarioSegundaContagem: gerente2!.id
+      });
+
+      expect(inventarioConfirmado.statusAprovacao).toBe('APROVADO_DUPLA_CONFERENCIA');
+      expect(inventarioConfirmado.quantidadeFinal).toBe(70.5); // Média das contagens
+    });
+  });
+
+  describe('Compliance e Regulamentação', () => {
+    it('deve manter registros por prazo legal (5 anos)', async () => {
+      const produto = TestHelpers.getControlledProduct();
+      const farmaceutico = TestHelpers.getPharmacist();
+
+      const movimentacao = await estoqueService.registrarMovimentacao({
+        produtoId: produto!.id,
+        tipo: TipoMovimentacao.SAIDA,
+        quantidade: 1,
+        motivo: 'Venda controlada - Arquivo legal',
+        observacoes: 'Receita B1 - Cliente João - CPF 123.456.789-00',
+        usuarioId: farmaceutico!.id
+      });
+
+      // Verificar que possui prazo de retenção configurado
+      expect(movimentacao.prazoRetencao).toBe(5); // 5 anos
+      expect(movimentacao.dataLimiteExclusao).toBeInstanceOf(Date);
+
+      const dataLimite = new Date(movimentacao.dataLimiteExclusao);
+      const diferencaAnos = (dataLimite.getTime() - Date.now()) / (365.25 * 24 * 60 * 60 * 1000);
+      
+      expect(diferencaAnos).toBeCloseTo(5, 0); // Aproximadamente 5 anos
+    });
+
+    it('deve gerar backup de segurança para auditoria', async () => {
+      const dataInicio = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const dataFim = new Date();
+
+      const backupAuditoria = await auditoriaService.gerarBackupLegal(dataInicio, dataFim);
+
+      expect(backupAuditoria).toBeDefined();
+      expect(backupAuditoria.hashIntegridade).toBeDefined();
+      expect(backupAuditoria.assinaturaDigital).toBeDefined();
+      expect(backupAuditoria.dataGeracao).toBeInstanceOf(Date);
+      expect(backupAuditoria.registrosIncluidos).toBeGreaterThanOrEqual(0);
+      expect(backupAuditoria.formatoArquivo).toBe('JSON_ASSINADO');
+    });
+  });
+});
