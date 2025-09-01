@@ -2,10 +2,7 @@
 # Multi-stage build para otimizar tamanho da imagem
 
 # Estágio 1: Build da aplicação
-FROM node:18-alpine AS builder
-
-# Instalar dependências necessárias
-RUN apk add --no-cache libc6-compat
+FROM node:22-slim AS builder
 
 # Definir diretório de trabalho
 WORKDIR /app
@@ -14,13 +11,13 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instalar dependências
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install
 
 # Copiar código fonte
 COPY . .
 
-# Build da aplicação React
-RUN npm run build
+# Build da aplicação React com API URL correta
+RUN REACT_APP_API_URL=/api npm run build
 
 # Estágio 2: Servidor de produção com NGINX
 FROM nginx:alpine

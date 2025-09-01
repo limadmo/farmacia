@@ -4,6 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
 
 import { logger } from '@/shared/utils/logger';
 import { errorHandler } from '@/presentation/middleware/errorHandler';
@@ -95,14 +96,15 @@ class App {
   }
 
   private setupRoutes(): void {
+    // Configurar rotas da API
     setupRoutes(this.express);
   }
 
   private setupErrorHandling(): void {
-    // 404 handler
-    this.express.use('*', (req, res) => {
+    // 404 handler apenas para rotas /api
+    this.express.use('/api/*', (req, res) => {
       res.status(404).json({
-        error: 'Endpoint não encontrado',
+        error: 'API endpoint não encontrado',
         path: req.originalUrl,
         method: req.method,
       });

@@ -57,15 +57,4 @@ export const setupRoutes = (app: Application): void => {
 
   // TODO: Adicionar outras rotas dos módulos
   // app.use(`${apiPrefix}/relatorios`, relatorioRoutes);
-
-  // Middleware para capturar rotas não encontradas (404)
-  app.use('*', (req, res) => {
-    res.status(404).json({
-      error: 'Endpoint não encontrado',
-      statusCode: 404,
-      timestamp: new Date().toISOString(),
-      path: req.originalUrl,
-      method: req.method,
-    });
-  });
 };

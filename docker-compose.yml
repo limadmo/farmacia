@@ -1,71 +1,69 @@
-# Docker Compose Unificado - Todos os Ambientes
+# Docker Compose - Arquitetura Microserviços Farmácia
 version: '3.8'
 
 services:
+  # Database PostgreSQL
   db:
-    image: postgres:15
-    container_name: farmacia-db-${ENV:-dev}
+    image: postgres:15-alpine
+    container_name: farmacia-db
     environment:
-      POSTGRES_DB: ${DB_NAME:-farmacia_dev}
-      POSTGRES_USER: ${DB_USER:-admin}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: farmacia_dev
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: dev123456
     volumes:
-      - postgres_data_${ENV:-dev}:/var/lib/postgresql/data
-    ports:
-      - "${DB_PORT:-5433}:5432"
+      - postgres_data:/var/lib/postgresql/data
     networks:
-      - farmacia-network-${ENV:-dev}
+      - farmacia-net
+    restart: unless-stopped
 
+  # Backend API
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      args:
-        NODE_ENV: ${NODE_ENV:-development}
-        CACHE_BUST: ${CACHE_BUST:-1}
-    container_name: farmacia-backend-${ENV:-dev}
+    container_name: farmacia-backend
     environment:
-      NODE_ENV: ${NODE_ENV:-development}
-      DATABASE_URL: postgresql://${DB_USER:-admin}:${DB_PASSWORD}@db:5432/${DB_NAME:-farmacia_dev}
-      JWT_SECRET: ${JWT_SECRET}
-      PORT: ${BACKEND_PORT:-3001}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
-    ports:
-      - "${BACKEND_PORT:-3001}:3001"
+      NODE_ENV: development
+      DATABASE_URL: postgresql://admin:dev123456@db:5432/farmacia_dev
+      JWT_SECRET: sua-chave-secreta-muito-segura-aqui-com-pelo-menos-32-caracteres
+      PORT: 3001
     depends_on:
       - db
     networks:
-      - farmacia-network-${ENV:-dev}
+      - farmacia-net
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    restart: unless-stopped
 
+  # Frontend React + Nginx
   frontend:
     build:
       context: ./frontend
-      dockerfile: ${FRONTEND_DOCKERFILE:-Dockerfile.dev}
-      args:
-        NODE_ENV: ${NODE_ENV:-development}
-    container_name: farmacia-frontend-${ENV:-dev}
-    environment:
-      NODE_ENV: ${NODE_ENV:-development}
-      REACT_APP_API_URL: ${REACT_APP_API_URL:-/farmacia/api}
-      REACT_APP_BACKEND_URL: ${REACT_APP_BACKEND_URL:-http://backend:3001}
-      DANGEROUSLY_DISABLE_HOST_CHECK: ${DISABLE_HOST_CHECK:-true}
-      WATCHPACK_POLLING: ${WATCHPACK_POLLING:-true}
+      dockerfile: Dockerfile
+    container_name: farmacia-frontend
+    networks:
+      - farmacia-net
+    restart: unless-stopped
+
+  # Nginx Proxy Reverso
+  proxy:
+    image: nginx:alpine
+    container_name: farmacia-proxy
     ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
     depends_on:
       - backend
+      - frontend
     networks:
-      - farmacia-network-${ENV:-dev}
+      - farmacia-net
+    restart: unless-stopped
 
 volumes:
-  postgres_data_dev:
-  postgres_data_staging:
-  postgres_data_prod:
+  postgres_data:
 
 networks:
-  farmacia-network-dev:
-    driver: bridge
-  farmacia-network-staging:
-    driver: bridge
-  farmacia-network-prod:
+  farmacia-net:
     driver: bridge
