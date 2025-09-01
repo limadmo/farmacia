@@ -81,7 +81,7 @@ export function validarCPF(cpf: string): boolean {
     soma += parseInt(cleaned.charAt(i)) * (10 - i);
   }
   let resto = soma % 11;
-  let digitoVerificador1 = resto < 2 ? 0 : 11 - resto;
+  const digitoVerificador1 = resto < 2 ? 0 : 11 - resto;
   
   if (digitoVerificador1 !== parseInt(cleaned.charAt(9))) {
     return false;
@@ -93,7 +93,7 @@ export function validarCPF(cpf: string): boolean {
     soma += parseInt(cleaned.charAt(i)) * (11 - i);
   }
   resto = soma % 11;
-  let digitoVerificador2 = resto < 2 ? 0 : 11 - resto;
+  const digitoVerificador2 = resto < 2 ? 0 : 11 - resto;
   
   return digitoVerificador2 === parseInt(cleaned.charAt(10));
 }
@@ -121,7 +121,7 @@ export function validarCNPJ(cnpj: string): boolean {
     soma += parseInt(cleaned.charAt(i)) * pesos1[i];
   }
   let resto = soma % 11;
-  let digitoVerificador1 = resto < 2 ? 0 : 11 - resto;
+  const digitoVerificador1 = resto < 2 ? 0 : 11 - resto;
   
   if (digitoVerificador1 !== parseInt(cleaned.charAt(12))) {
     return false;
@@ -134,7 +134,7 @@ export function validarCNPJ(cnpj: string): boolean {
     soma += parseInt(cleaned.charAt(i)) * pesos2[i];
   }
   resto = soma % 11;
-  let digitoVerificador2 = resto < 2 ? 0 : 11 - resto;
+  const digitoVerificador2 = resto < 2 ? 0 : 11 - resto;
   
   return digitoVerificador2 === parseInt(cleaned.charAt(13));
 }

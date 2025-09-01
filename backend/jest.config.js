@@ -20,7 +20,7 @@ module.exports = {
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
-  setupFilesAfterEnv: ['<rootDir>/tests/setup.helper.ts'],
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.real-db.helper.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@/domain/(.*)$': '<rootDir>/src/domain/$1',

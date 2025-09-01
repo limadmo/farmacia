@@ -23,7 +23,7 @@ export function validarCPF(cpf: string): boolean {
     soma += parseInt(cpf.charAt(i)) * (10 - i);
   }
   let resto = soma % 11;
-  let digitoVerificador1 = resto < 2 ? 0 : 11 - resto;
+  const digitoVerificador1 = resto < 2 ? 0 : 11 - resto;
   if (digitoVerificador1 !== parseInt(cpf.charAt(9))) return false;
 
   // Validação do segundo dígito verificador
@@ -32,7 +32,7 @@ export function validarCPF(cpf: string): boolean {
     soma += parseInt(cpf.charAt(i)) * (11 - i);
   }
   resto = soma % 11;
-  let digitoVerificador2 = resto < 2 ? 0 : 11 - resto;
+  const digitoVerificador2 = resto < 2 ? 0 : 11 - resto;
   if (digitoVerificador2 !== parseInt(cpf.charAt(10))) return false;
 
   return true;

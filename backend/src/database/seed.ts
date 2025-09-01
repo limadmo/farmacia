@@ -4,8 +4,7 @@ import { faker } from '@faker-js/faker';
 import { cpf, cnpj } from 'cpf-cnpj-validator';
 import { addDays, subDays, format } from 'date-fns';
 
-// Configurar faker para português brasileiro
-faker.locale = 'pt_BR';
+// Configurar faker para português brasileiro (versão nova não precisa de configuração)
 
 const prisma = new PrismaClient();
 
@@ -520,7 +519,7 @@ async function main() {
     
     // Selecionar produtos para a venda (1 a 5 itens)
     const numItens = faker.number.int({ min: 1, max: 5 });
-    const produtosVenda = [];
+    const produtosVenda: any[] = [];
     const produtosDisponiveis = produtos.filter(p => p.estoque > 0);
     
     let temMedicamentoControlado = false;
@@ -533,7 +532,7 @@ async function main() {
       // Verificar se já foi adicionado
       const produtoExistente = produtosVenda.find(p => p.produtoId === produto.id);
       if (!produtoExistente && produto.estoque >= quantidade) {
-        const desconto = faker.number.int({ min: 0, max: produto.precoVenda * 0.1 }); // Até 10% desconto
+        const desconto = faker.number.int({ min: 0, max: Number(produto.precoVenda) * 0.1 }); // Até 10% desconto
         const precoUnitario = Number(produto.precoVenda);
         const total = (precoUnitario - desconto) * quantidade;
         

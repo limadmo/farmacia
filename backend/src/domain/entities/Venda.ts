@@ -450,7 +450,7 @@ export class VendaBusinessRules {
     }
     
     // Validar formato: letras, números, hífens e barras
-    const formatoValido = /^[A-Za-z0-9\-\/]{3,50}$/.test(receita);
+    const formatoValido = /^[A-Za-z0-9\-/]{3,50}$/.test(receita);
     if (!formatoValido) {
       errors.push('Número da receita deve conter apenas letras, números, hífens e barras');
     }

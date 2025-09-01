@@ -32,7 +32,7 @@ export class DuplaLeituraService {
   private sessions: Map<string, DuplaLeituraSession> = new Map();
   private readonly SESSION_TIMEOUT = 5 * 60 * 1000; // 5 minutos
 
-  private intervalId: NodeJS.Timeout | null = null;
+  private intervalId: any | null = null;
 
   constructor(
     private prisma: PrismaClient,
