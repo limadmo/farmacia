@@ -1,0 +1,71 @@
+# Docker Compose Unificado - Todos os Ambientes
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: farmacia-db-${ENV:-dev}
+    environment:
+      POSTGRES_DB: ${DB_NAME:-farmacia_dev}
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data_${ENV:-dev}:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    networks:
+      - farmacia-network-${ENV:-dev}
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: ${NODE_ENV:-development}
+        CACHE_BUST: ${CACHE_BUST:-1}
+    container_name: farmacia-backend-${ENV:-dev}
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: postgresql://${DB_USER:-admin}:${DB_PASSWORD}@db:5432/${DB_NAME:-farmacia_dev}
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: ${BACKEND_PORT:-3001}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    depends_on:
+      - db
+    networks:
+      - farmacia-network-${ENV:-dev}
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ${FRONTEND_DOCKERFILE:-Dockerfile.dev}
+      args:
+        NODE_ENV: ${NODE_ENV:-development}
+    container_name: farmacia-frontend-${ENV:-dev}
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      REACT_APP_API_URL: ${REACT_APP_API_URL:-/farmacia/api}
+      REACT_APP_BACKEND_URL: ${REACT_APP_BACKEND_URL:-http://backend:3001}
+      DANGEROUSLY_DISABLE_HOST_CHECK: ${DISABLE_HOST_CHECK:-true}
+      WATCHPACK_POLLING: ${WATCHPACK_POLLING:-true}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - backend
+    networks:
+      - farmacia-network-${ENV:-dev}
+
+volumes:
+  postgres_data_dev:
+  postgres_data_staging:
+  postgres_data_prod:
+
+networks:
+  farmacia-network-dev:
+    driver: bridge
+  farmacia-network-staging:
+    driver: bridge
+  farmacia-network-prod:
+    driver: bridge
