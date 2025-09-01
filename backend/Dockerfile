@@ -28,11 +28,10 @@ RUN npm ci --only=production && npm cache clean --force
 # Copiar arquivos do projeto (src será executado com ts-node)
 COPY . .
 
-# CACHE BUSTING: Limpar caches do Prisma explicitamente
+# CACHE BUSTING: Limpar apenas caches específicos do Prisma
 RUN echo "Production cache bust: ${CACHE_BUST}" && \
-    rm -rf node_modules/.prisma/ || true && \
-    rm -rf node_modules/@prisma/client/runtime/ || true && \
-    rm -rf node_modules/@prisma/client/index.d.ts || true
+    rm -rf node_modules/.prisma/client/index.d.ts || true && \
+    rm -rf node_modules/.prisma/client/schema.prisma || true
 
 # Instalar ts-node e tsconfig-paths para produção (sem build)
 RUN npm install -g ts-node typescript tsconfig-paths
