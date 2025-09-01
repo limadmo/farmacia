@@ -1,4 +1,13 @@
-# Regras do Projeto Farmácia Backend
+# Regras do Projeto Farmácia
+
+## Estrutura do Projeto
+```
+farmacia/
+├── backend/     # API Express.js + TypeScript
+├── frontend/    # React + TypeScript  
+├── scripts/     # Scripts de automação
+└── CLAUDE.md   # Este arquivo (regras para todo projeto)
+```
 
 ## Testing Strategy (REGRA ABSOLUTA)
 
@@ -33,31 +42,31 @@ beforeAll(async () => {
 ## Build & Test Commands
 
 ### Desenvolvimento (SEMPRE COM RESET)
-- `npm run dev:reset` - Reset completo + desenvolvimento
-- `npm run dev:full` - Docker completo (DB + Backend + Frontend)
-- `../scripts/dev-start.sh` - Script completo de desenvolvimento
+- `cd backend && npm run dev:reset` - Reset completo + desenvolvimento
+- `cd backend && npm run dev:full` - Docker completo (DB + Backend + Frontend)
+- `./scripts/dev-start.sh` - Script completo de desenvolvimento
 
 ### Testes com Banco REAL
-- `npm test` - Todos os testes (usa banco real + seed)
-- `npm run test:unit` - Testes unitários
-- `npm run test:integration` - Testes integração  
-- `npm run test:e2e` - Testes end-to-end
-- `npm run test:real-db` - Força uso de banco real
+- `cd backend && npm test` - Todos os testes (usa banco real + seed)
+- `cd backend && npm run test:unit` - Testes unitários
+- `cd backend && npm run test:integration` - Testes integração  
+- `cd backend && npm run test:e2e` - Testes end-to-end
+- `cd backend && npm run test:real-db` - Força uso de banco real
 
 ### Pre-commit (OBRIGATÓRIO)
-- `npm run pre-commit` - Reset + Lint + TypeCheck + Tests + Build
-- `../scripts/pre-commit.sh` - Script completo de validação
+- `cd backend && npm run pre-commit` - Reset + Lint + TypeCheck + Tests + Build
+- `./scripts/pre-commit.sh` - Script completo de validação
 
 ### Linting/Quality
-- `npm run lint` - ESLint
-- `npm run typecheck` - TypeScript check
-- `npm run build` - Build completo
+- `cd backend && npm run lint` - ESLint
+- `cd backend && npm run typecheck` - TypeScript check
+- `cd backend && npm run build` - Build completo
 
 ### Database (SEMPRE RESET EM DEV)
-- `npm run db:reset` - Reset database + todas migrations
-- `npm run db:fresh` - Reset + seed completo
-- `npm run db:seed` - Seed com dados farmacêuticos
-- `npm run db:start` - Subir apenas PostgreSQL
+- `cd backend && npm run db:reset` - Reset database + todas migrations
+- `cd backend && npm run db:fresh` - Reset + seed completo
+- `cd backend && npm run db:seed` - Seed com dados farmacêuticos
+- `cd backend && npm run db:start` - Subir apenas PostgreSQL
 
 ## Auto-Approval Commands
 
