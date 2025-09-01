@@ -13,14 +13,20 @@ RUN apt-get update && apt-get install -y \
 # Diretório de trabalho
 WORKDIR /app
 
-# Copiar package.json do backend
+# Copiar todos os arquivos do backend
 COPY backend/package*.json ./
+
+# Debug - verificar se package.json foi copiado
+RUN ls -la /app/
 
 # Instalar dependências
 RUN npm install
 
 # Copiar código fonte do backend
-COPY backend/ .
+COPY backend/. ./
+
+# Debug - verificar estrutura após copiar tudo
+RUN ls -la /app/
 
 # Gerar Prisma client
 RUN npx prisma generate
