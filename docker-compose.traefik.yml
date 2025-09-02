@@ -46,18 +46,23 @@ services:
       retries: 3
       start_period: 40s
     labels:
-      # Labels Traefik completos para Coolify
+      # Labels Traefik otimizados para Raw Compose Deployment
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`api.diegolima.dev`)"
-      - "traefik.http.routers.backend.entrypoints=websecure"
-      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
-      - "traefik.http.services.backend.loadbalancer.server.port=3001"
+      - "traefik.http.routers.farmacia-backend.rule=Host(`api.diegolima.dev`)"
+      - "traefik.http.routers.farmacia-backend.entrypoints=websecure"
+      - "traefik.http.routers.farmacia-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.farmacia-backend-service.loadbalancer.server.port=3001"
       - "traefik.docker.network=coolify"
+      # Roteamento adicional para HTTP (redirecionamento automático)
+      - "traefik.http.routers.farmacia-backend-http.rule=Host(`api.diegolima.dev`)"
+      - "traefik.http.routers.farmacia-backend-http.entrypoints=web"
+      - "traefik.http.routers.farmacia-backend-http.middlewares=redirect-to-https"
       # Headers para CORS e segurança
-      - "traefik.http.routers.backend.middlewares=backend-headers"
-      - "traefik.http.middlewares.backend-headers.headers.accesscontrolallowmethods=GET,OPTIONS,PUT,POST,DELETE,PATCH"
-      - "traefik.http.middlewares.backend-headers.headers.accesscontrolalloworiginlist=https://farmacia.diegolima.dev"
-      - "traefik.http.middlewares.backend-headers.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.routers.farmacia-backend.middlewares=farmacia-headers"
+      - "traefik.http.middlewares.farmacia-headers.headers.accesscontrolallowmethods=GET,OPTIONS,PUT,POST,DELETE,PATCH"
+      - "traefik.http.middlewares.farmacia-headers.headers.accesscontrolalloworiginlist=https://farmacia.diegolima.dev"
+      - "traefik.http.middlewares.farmacia-headers.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.middlewares.farmacia-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
 
 networks:
   coolify:
