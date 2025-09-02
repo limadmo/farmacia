@@ -38,11 +38,16 @@ services:
     volumes:
       - backend_uploads:/app/uploads
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3001/"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    labels:
+      # Tentar labels específicos do Coolify para debug
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`api.diegolima.dev`)"
+      - "traefik.http.services.backend.loadbalancer.server.port=3001"
 
 volumes:
   postgres_data:

@@ -93,6 +93,20 @@ class App {
         version: '1.0.0',
       });
     });
+
+    // Root route for debugging Coolify routing
+    this.express.get('/', (req, res) => {
+      res.json({
+        message: 'Farmácia API - Backend funcionando!',
+        status: 'online',
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV,
+        endpoints: {
+          health: '/health',
+          api: '/api/*',
+        },
+      });
+    });
   }
 
   private setupRoutes(): void {
