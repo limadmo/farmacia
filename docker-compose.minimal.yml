@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  # Backend API apenas - Ultra Simplificado
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: development
+      # Usar banco remoto temporário ou mock
+      DATABASE_URL: ${DATABASE_URL:-postgresql://admin:dev123456@host.docker.internal:5432/farmacia_dev}
+      JWT_SECRET: ${JWT_SECRET:-sua-chave-secreta-muito-segura-aqui-com-pelo-menos-32-caracteres}
+      JWT_EXPIRES_IN: 7d
+      PORT: 3001
+      FRONTEND_URL: https://farmacia.diegolima.dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

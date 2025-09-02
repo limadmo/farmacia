@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-farmacia_dev}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - coolify
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-admin} -d ${DB_NAME:-farmacia_dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API - Labels Traefik Completos
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://${DB_USER:-admin}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-farmacia_dev}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: 7d
+      PORT: 3001
+      FRONTEND_URL: https://farmacia.diegolima.dev
+    networks:
+      - coolify
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - backend_uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      # Labels Traefik completos para Coolify
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`api.diegolima.dev`)"
+      - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.backend.loadbalancer.server.port=3001"
+      - "traefik.docker.network=coolify"
+      # Headers para CORS e segurança
+      - "traefik.http.routers.backend.middlewares=backend-headers"
+      - "traefik.http.middlewares.backend-headers.headers.accesscontrolallowmethods=GET,OPTIONS,PUT,POST,DELETE,PATCH"
+      - "traefik.http.middlewares.backend-headers.headers.accesscontrolalloworiginlist=https://farmacia.diegolima.dev"
+      - "traefik.http.middlewares.backend-headers.headers.accesscontrolallowcredentials=true"
+
+networks:
+  coolify:
+    external: true
+
+volumes:
+  postgres_data:
+  backend_uploads:
