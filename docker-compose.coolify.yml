@@ -23,14 +23,15 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    expose:
-      - "3001"
+    ports:
+      - "3001:3001"
     environment:
       NODE_ENV: development
       DATABASE_URL: postgresql://${DB_USER:-admin}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-farmacia_dev}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       PORT: 3001
+      FRONTEND_URL: ${FRONTEND_URL:-https://farmacia.diegolima.dev}
       CORS_ORIGIN: ${CORS_ORIGIN:-https://farmacia.diegolima.dev}
     depends_on:
       postgres:
@@ -38,7 +39,7 @@ services:
     volumes:
       - backend_uploads:/app/uploads
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -53,8 +54,8 @@ services:
         REACT_APP_API_URL: ${REACT_APP_API_URL:-https://api.diegolima.dev/api}
         REACT_APP_ENV: development
     restart: unless-stopped
-    expose:
-      - "80"
+    ports:
+      - "8080:80"
     depends_on:
       - backend
     healthcheck:
