@@ -67,8 +67,10 @@ COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
 
-# Criar diretório de uploads
-RUN mkdir -p uploads && chown -R nodejs:nodejs uploads
+# Criar diretórios necessários com permissões corretas
+RUN mkdir -p uploads logs && \
+    chown -R nodejs:nodejs uploads logs && \
+    chmod -R 755 uploads logs
 
 # Mudar para usuário não-root
 USER nodejs

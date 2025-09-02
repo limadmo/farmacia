@@ -14,7 +14,7 @@ services:
     networks:
       - farmacia_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-admin}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-admin} -d ${DB_NAME:-farmacia_dev}"]
       interval: 10s
       timeout: 5s
       retries: 5
