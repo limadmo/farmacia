@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-farmacia_dev}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - farmacia_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-admin}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API - api.diegolima.dev
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://${DB_USER:-admin}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-farmacia_dev}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      PORT: 3001
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://farmacia.diegolima.dev}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - farmacia_network
+    volumes:
+      - backend_uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      # Configurações para Coolify
+      - "coolify.domain=api.diegolima.dev"
+      - "coolify.port=3001"
+
+  # Frontend React - farmacia.diegolima.dev
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-https://api.diegolima.dev/api}
+        REACT_APP_ENV: development
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      - backend
+    networks:
+      - farmacia_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      # Configurações para Coolify
+      - "coolify.domain=farmacia.diegolima.dev"
+      - "coolify.port=80"
+
+networks:
+  farmacia_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  backend_uploads:
