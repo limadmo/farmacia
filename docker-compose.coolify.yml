@@ -11,8 +11,6 @@ services:
       POSTGRES_DB: ${DB_NAME:-farmacia_dev}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - farmacia_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-admin} -d ${DB_NAME:-farmacia_dev}"]
       interval: 10s
@@ -37,8 +35,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    networks:
-      - farmacia_network
     volumes:
       - backend_uploads:/app/uploads
     healthcheck:
@@ -47,10 +43,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    labels:
-      # Configurações para Coolify
-      - "coolify.domain=api.diegolima.dev"
-      - "coolify.port=3001"
 
   # Frontend React - farmacia.diegolima.dev
   frontend:
@@ -65,21 +57,11 @@ services:
       - "80"
     depends_on:
       - backend
-    networks:
-      - farmacia_network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost"]
       interval: 30s
       timeout: 10s
       retries: 3
-    labels:
-      # Configurações para Coolify
-      - "coolify.domain=farmacia.diegolima.dev"
-      - "coolify.port=80"
-
-networks:
-  farmacia_network:
-    driver: bridge
 
 volumes:
   postgres_data:
