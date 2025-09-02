@@ -23,8 +23,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    ports:
-      - "3001:3001"
+    expose:
+      - "3001"
     environment:
       NODE_ENV: development
       DATABASE_URL: postgresql://${DB_USER:-admin}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-farmacia_dev}
@@ -54,8 +54,8 @@ services:
         REACT_APP_API_URL: ${REACT_APP_API_URL:-https://api.diegolima.dev/api}
         REACT_APP_ENV: development
     restart: unless-stopped
-    ports:
-      - "8080:80"
+    expose:
+      - "80"
     depends_on:
       - backend
     healthcheck:
