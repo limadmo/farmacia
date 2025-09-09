@@ -1,0 +1,138 @@
+# Dependencies
+node_modules/
+jspm_packages/
+
+# Build outputs
+dist/
+build/
+build/Release
+.cache/
+.parcel-cache
+
+# Environment files (CRITICAL SECURITY)
+.env
+.env.*
+!.env.example
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# Prisma (ALLOW migrations - they MUST be tracked)
+# Only ignore local dev database files
+prisma/dev.db
+prisma/dev.db-journal
+prisma/*.db
+prisma/*.db-journal
+# Generated client (can be regenerated)
+generated/
+
+# Security - Secrets & Credentials (2025 Best Practices)
+secrets/
+keys/
+credentials/
+certificates/
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+.docker-secrets/
+docker-secrets/
+**/*secret*
+**/*credential*
+**/*password*
+
+# Backup files (may contain credentials)
+*.backup
+*.bak
+*.dump
+**/*.backup.*
+**/*.back.*
+
+# Database dumps (but NOT migration files)
+database_*.sql
+dump_*.sql
+backup_*.sql
+*.sql.gz
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db-wal
+
+# API Keys and Tokens (common patterns)
+**/config/keys.*
+**/config/secrets.*
+**/*token*
+**/*apikey*
+**/*api-key*
+
+# Docker secrets
+.docker/
+**/.docker/
+
+# Logs
+*.log
+logs/
+/logs/
+./logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Temporary files
+.temp/
+.tmp/
+tmp/
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+.vscode-test
+*.sublime*
+
+# Operating system files
+.DS_Store
+.DS_*
+Thumbs.db
+
+# Test coverage and reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+coverage/
+*.lcov
+.nyc_output
+junit.xml
+
+# Cache directories
+*.tsbuildinfo
+.npm
+.eslintcache
+.stylelintcache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+.node_repl_history
+
+# Package files
+*.tgz
+.yarn-integrity
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Uploads directory (keep structure, ignore content)
+uploads/*
+!uploads/.gitkeep

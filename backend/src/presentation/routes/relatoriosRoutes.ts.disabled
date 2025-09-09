@@ -1,0 +1,38 @@
+// Rotas de Relatórios
+// Define endpoints para relatórios gerenciais - acesso exclusivo para administradores
+
+import { Router } from 'express';
+import RelatoriosController from '../controllers/RelatoriosController';
+import { authMiddleware } from '../middleware/authMiddleware';
+import { requireAdmin } from '../middlewares/permissionMiddleware';
+
+const router = Router();
+
+// Middleware de autenticação aplicado a todas as rotas
+router.use(authMiddleware);
+
+// Middleware de autorização - apenas administradores
+router.use(requireAdmin);
+
+// Dashboard principal com métricas consolidadas
+router.get('/dashboard', RelatoriosController.obterDashboard);
+
+// Resumo executivo com principais indicadores
+router.get('/resumo', RelatoriosController.obterResumoExecutivo);
+
+// Análise detalhada de vendas
+router.get('/vendas', RelatoriosController.obterAnaliseVendas);
+
+// Análise de estoque e curva ABC
+router.get('/estoque', RelatoriosController.obterAnaliseEstoque);
+
+// Análise financeira e DRE
+router.get('/financeiro', RelatoriosController.obterAnaliseFinanceira);
+
+// Análise de clientes e segmentação
+router.get('/clientes', RelatoriosController.obterAnaliseClientes);
+
+// Exportação de relatórios em diferentes formatos
+router.get('/exportar/:tipo/:formato', RelatoriosController.exportarRelatorio);
+
+export default router;

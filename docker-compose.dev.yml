@@ -1,0 +1,109 @@
+# Docker Compose Completo para Desenvolvimento
+# Força NODE_ENV=development independente da configuração do Dokploy
+# Arquivo standalone que pode ser usado sozinho
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: farmacia_postgres_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: farmacia_dev
+    ports:
+      - "5432:5432"  # Expor porta para desenvolvimento local
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - farmacia_network
+      - dokploy-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d farmacia_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API - FORÇA NODE_ENV=development
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: development  # Passa como build arg
+    container_name: farmacia_backend_dev
+    restart: unless-stopped
+    ports:
+      - "3001:3001"  # Expor porta para desenvolvimento local
+    environment:
+      NODE_ENV: development  # FORÇADO para development
+      DATABASE_URL: postgresql://admin:${DB_PASSWORD}@postgres:5432/farmacia_dev
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 3001
+      FRONTEND_URL: http://localhost:8080,https://farmacia-dev.diegolima.dev
+      CORS_ORIGIN: http://localhost:8080,https://farmacia-dev.diegolima.dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - farmacia_network
+      - dokploy-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3001/health || exit 1"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend-dev.rule=Host(`api-dev.diegolima.dev`)"
+      - "traefik.http.routers.backend-dev.service=backend-dev"
+      - "traefik.http.services.backend-dev.loadbalancer.server.port=3001"
+      - "traefik.http.routers.backend-dev.tls.certresolver=letsencrypt"
+      - "traefik.docker.network=dokploy-network"
+
+  # Frontend React
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: https://api-dev.diegolima.dev/api
+        REACT_APP_ENV: development
+    container_name: farmacia_frontend_dev
+    restart: unless-stopped
+    # Acesso apenas via Traefik - sem exposição de porta para evitar conflitos
+    environment:
+      NODE_ENV: development  # FORÇADO para development
+      REACT_APP_ENV: development
+    depends_on:
+      - backend
+    networks:
+      - farmacia_network
+      - dokploy-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1 || exit 1"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend-dev.rule=Host(`farmacia-dev.diegolima.dev`)"
+      - "traefik.http.routers.frontend-dev.service=frontend-dev"
+      - "traefik.http.services.frontend-dev.loadbalancer.server.port=80"
+      - "traefik.http.routers.frontend-dev.tls.certresolver=letsencrypt"
+      - "traefik.docker.network=dokploy-network"
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  farmacia_network:
+    driver: bridge
+  dokploy-network:
+    external: true

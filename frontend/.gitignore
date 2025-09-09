@@ -1,0 +1,136 @@
+# Dependencies
+node_modules/
+jspm_packages/
+
+# React build outputs
+build/
+dist/
+.next/
+out/
+.cache/
+.parcel-cache
+
+# Environment files (CRITICAL SECURITY)
+.env
+.env.*
+!.env.example
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# React/Webpack specific
+.env.development
+.env.production
+.env.staging
+
+# Source maps (may contain sensitive info in production)
+build/static/js/*.map
+build/static/css/*.map
+*.js.map
+*.css.map
+
+# Security - API Keys & Secrets (2025 React Best Practices)
+src/config/keys.*
+src/config/secrets.*
+public/config.*
+**/*apikey*
+**/*api-key*
+**/*token*
+**/*credential*
+**/*secret*
+**/*password*
+
+# Static analysis and security
+eslint-report.html
+security-report.*
+
+# Certificates (never commit these!)
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+ssl/
+certificates/
+
+# Backup files
+*.backup
+*.bak
+**/*.backup.*
+**/*.back.*
+
+# Logs
+*.log
+logs/
+/logs/
+./logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Temporary files
+.temp/
+.tmp/
+tmp/
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime*
+.vscode-test
+
+# Operating system files
+.DS_Store
+.DS_*
+Thumbs.db
+
+# Design files (may contain watermarked assets)
+*.psd
+*.sketch
+*.fig
+design/
+mockups/
+
+# Test coverage and reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+coverage/
+*.lcov
+.nyc_output
+junit.xml
+test-results/
+
+# Cache directories
+*.tsbuildinfo
+.npm
+.eslintcache
+.stylelintcache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+.node_repl_history
+
+# Package files
+*.tgz
+.yarn-integrity
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# React DevTools profiling
+*.cpuprofile
+
+# Storybook build outputs
+storybook-static/

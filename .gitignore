@@ -1,0 +1,110 @@
+# Permitir apenas arquivos de exemplo de ambiente
+*
+!.env.example
+!env.example
+!*/env.example
+
+# Permitir arquivos essenciais do projeto
+!.gitignore
+!README.md
+!package.json
+!package-lock.json
+!docker-compose*.yml
+!Dockerfile
+!tsconfig.json
+!jest.config.js
+
+# Permitir arquivos públicos do frontend
+!frontend/public/
+!frontend/public/*
+!frontend/public/manifest.json
+!frontend/public/favicon.ico
+!frontend/public/*.png
+
+# Permitir diretórios e seus conteúdos
+!*/
+!backend/
+!frontend/
+!nginx/
+!config/
+!scripts/
+!database/
+
+# Permitir código-fonte
+!backend/src/
+!backend/src/**
+!frontend/src/
+!frontend/src/**
+!backend/prisma/schema.prisma
+
+# CRÍTICO: Permitir migrations (NUNCA bloquear!)
+!backend/prisma/migrations/
+!backend/prisma/migrations/**
+
+# Ignorar node_modules em qualquer nível
+**/node_modules/
+jspm_packages/
+
+# Ignorar arquivos de ambiente
+**/.env
+**/.env.*
+!**/.env.example
+!**/env.example
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# Ignorar arquivos de build e cache
+**/dist/
+**/build/
+**/.cache/
+**/.next/
+**/.nuxt/
+out/
+.svelte-kit
+
+# Ignorar arquivos de log
+**/*.log
+**/logs/
+.git/logs/
+.git/logs/refs/
+.git/logs/refs/heads/
+.git/logs/refs/remotes/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+backend/logs/
+frontend/logs/
+
+# Ignorar arquivos temporários
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+**/*.backup.*
+**/*.back.*
+
+# Ignorar arquivos de relatórios e cobertura
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+coverage
+*.lcov
+.nyc_output
+
+# Ignorar arquivos temporários
+**/.temp/
+**/.tmp/
+**/tmp/
+
+# Ignorar arquivos de IDE e editor
+**/.vscode/
+**/.idea/
+**/*.swp
+**/*.swo
+
+# Ignorar arquivos de sistema operacional
+**/.DS_Store
+**/Thumbs.db

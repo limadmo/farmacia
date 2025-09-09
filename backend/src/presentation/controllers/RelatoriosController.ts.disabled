@@ -1,0 +1,373 @@
+// Controller de Relatórios
+// Gerencia endpoints de relatórios gerenciais para administradores
+
+import { Request, Response, NextFunction } from 'express';
+import RelatoriosService from '../../application/services/RelatoriosService';
+import { logger } from '../../shared/utils/logger';
+
+interface AuthRequest extends Request {
+  user?: {
+    id: string;
+    nome: string;
+    login: string;
+    tipo: string;
+    farmaciaId?: string;
+  };
+}
+
+class RelatoriosController {
+  // Obter resumo executivo
+  async obterResumoExecutivo(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { dataInicio, dataFim, categoriaId, fornecedorId } = req.query;
+
+      // Log da requisição
+      logger.info('Solicitação de resumo executivo', {
+        usuario: req.user?.nome,
+        usuarioId: req.user?.id,
+        filtros: { dataInicio, dataFim, categoriaId, fornecedorId }
+      });
+
+      // Preparar filtros
+      const filtros = {
+        dataInicio: dataInicio ? new Date(dataInicio as string) : undefined,
+        dataFim: dataFim ? new Date(dataFim as string) : undefined,
+        categoriaId: categoriaId as string,
+        fornecedorId: fornecedorId as string
+      };
+
+      // Buscar dados
+      const resumo = await RelatoriosService.obterResumoExecutivo(filtros);
+
+      // Log de sucesso
+      logger.info('Resumo executivo gerado com sucesso', {
+        usuario: req.user?.nome,
+        totalVendas: resumo.vendas.total,
+        valorTotal: resumo.vendas.valor
+      });
+
+      res.json(resumo);
+    } catch (error) {
+      logger.error('Erro ao obter resumo executivo', {
+        erro: error instanceof Error ? error.message : 'Erro desconhecido',
+        stack: error instanceof Error ? error.stack : undefined,
+        usuario: req.user?.nome
+      });
+      next(error);
+    }
+  }
+
+  // Análise de vendas
+  async obterAnaliseVendas(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { dataInicio, dataFim, vendedorId, clienteId } = req.query;
+
+      // Log da requisição
+      logger.info('Solicitação de análise de vendas', {
+        usuario: req.user?.nome,
+        usuarioId: req.user?.id,
+        filtros: { dataInicio, dataFim, vendedorId, clienteId }
+      });
+
+      // Preparar filtros
+      const filtros = {
+        dataInicio: dataInicio ? new Date(dataInicio as string) : undefined,
+        dataFim: dataFim ? new Date(dataFim as string) : undefined,
+        vendedorId: vendedorId as string,
+        clienteId: clienteId as string
+      };
+
+      // Buscar dados
+      const analise = await RelatoriosService.obterAnaliseVendas(filtros);
+
+      // Log de sucesso
+      logger.info('Análise de vendas gerada com sucesso', {
+        usuario: req.user?.nome,
+        totalPeriodos: analise.porPeriodo.length,
+        totalCategorias: analise.porCategoria.length
+      });
+
+      res.json(analise);
+    } catch (error) {
+      logger.error('Erro ao obter análise de vendas', {
+        erro: error instanceof Error ? error.message : 'Erro desconhecido',
+        stack: error instanceof Error ? error.stack : undefined,
+        usuario: req.user?.nome
+      });
+      next(error);
+    }
+  }
+
+  // Análise de estoque
+  async obterAnaliseEstoque(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { categoriaId, fornecedorId } = req.query;
+
+      // Log da requisição
+      logger.info('Solicitação de análise de estoque', {
+        usuario: req.user?.nome,
+        usuarioId: req.user?.id,
+        filtros: { categoriaId, fornecedorId }
+      });
+
+      // Preparar filtros
+      const filtros = {
+        categoriaId: categoriaId as string,
+        fornecedorId: fornecedorId as string
+      };
+
+      // Buscar dados
+      const analise = await RelatoriosService.obterAnaliseEstoque(filtros);
+
+      // Log de sucesso
+      logger.info('Análise de estoque gerada com sucesso', {
+        usuario: req.user?.nome,
+        valorTotal: analise.valorTotal,
+        itensTotal: analise.itensTotal
+      });
+
+      res.json(analise);
+    } catch (error) {
+      logger.error('Erro ao obter análise de estoque', {
+        erro: error instanceof Error ? error.message : 'Erro desconhecido',
+        stack: error instanceof Error ? error.stack : undefined,
+        usuario: req.user?.nome
+      });
+      next(error);
+    }
+  }
+
+  // Análise financeira
+  async obterAnaliseFinanceira(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { dataInicio, dataFim } = req.query;
+
+      // Log da requisição
+      logger.info('Solicitação de análise financeira', {
+        usuario: req.user?.nome,
+        usuarioId: req.user?.id,
+        filtros: { dataInicio, dataFim }
+      });
+
+      // Preparar filtros
+      const filtros = {
+        dataInicio: dataInicio ? new Date(dataInicio as string) : undefined,
+        dataFim: dataFim ? new Date(dataFim as string) : undefined
+      };
+
+      // Buscar dados
+      const analise = await RelatoriosService.obterAnaliseFinanceira(filtros);
+
+      // Log de sucesso
+      logger.info('Análise financeira gerada com sucesso', {
+        usuario: req.user?.nome,
+        receita: analise.dre.receita,
+        lucro: analise.dre.lucroOperacional
+      });
+
+      res.json(analise);
+    } catch (error) {
+      logger.error('Erro ao obter análise financeira', {
+        erro: error instanceof Error ? error.message : 'Erro desconhecido',
+        stack: error instanceof Error ? error.stack : undefined,
+        usuario: req.user?.nome
+      });
+      next(error);
+    }
+  }
+
+  // Análise de clientes
+  async obterAnaliseClientes(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { dataInicio, dataFim } = req.query;
+
+      // Log da requisição
+      logger.info('Solicitação de análise de clientes', {
+        usuario: req.user?.nome,
+        usuarioId: req.user?.id,
+        filtros: { dataInicio, dataFim }
+      });
+
+      // Preparar filtros
+      const filtros = {
+        dataInicio: dataInicio ? new Date(dataInicio as string) : undefined,
+        dataFim: dataFim ? new Date(dataFim as string) : undefined
+      };
+
+      // Buscar dados
+      const analise = await RelatoriosService.obterAnaliseClientes(filtros);
+
+      // Log de sucesso
+      logger.info('Análise de clientes gerada com sucesso', {
+        usuario: req.user?.nome,
+        totalClientes: analise.total,
+        clientesAtivos: analise.ativos
+      });
+
+      res.json(analise);
+    } catch (error) {
+      logger.error('Erro ao obter análise de clientes', {
+        erro: error instanceof Error ? error.message : 'Erro desconhecido',
+        stack: error instanceof Error ? error.stack : undefined,
+        usuario: req.user?.nome
+      });
+      next(error);
+    }
+  }
+
+  // Exportar relatório
+  async exportarRelatorio(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { tipo, formato } = req.params;
+      const { dataInicio, dataFim, categoriaId, fornecedorId, vendedorId, clienteId } = req.query;
+
+      // Log da requisição
+      logger.info('Solicitação de exportação de relatório', {
+        usuario: req.user?.nome,
+        usuarioId: req.user?.id,
+        tipo,
+        formato,
+        filtros: { dataInicio, dataFim, categoriaId, fornecedorId, vendedorId, clienteId }
+      });
+
+      // Validar tipo e formato
+      const tiposValidos = ['resumo', 'vendas', 'estoque', 'financeiro', 'clientes'];
+      const formatosValidos = ['json', 'csv', 'excel', 'pdf'];
+
+      if (!tiposValidos.includes(tipo)) {
+        res.status(400).json({ erro: 'Tipo de relatório inválido' });
+        return;
+      }
+
+      if (!formatosValidos.includes(formato)) {
+        res.status(400).json({ erro: 'Formato de exportação inválido' });
+        return;
+      }
+
+      // Preparar filtros
+      const filtros = {
+        dataInicio: dataInicio ? new Date(dataInicio as string) : undefined,
+        dataFim: dataFim ? new Date(dataFim as string) : undefined,
+        categoriaId: categoriaId as string,
+        fornecedorId: fornecedorId as string,
+        vendedorId: vendedorId as string,
+        clienteId: clienteId as string
+      };
+
+      // Gerar relatório
+      const dados = await RelatoriosService.exportarRelatorio(tipo, formato, filtros);
+
+      // Log de sucesso
+      logger.info('Relatório exportado com sucesso', {
+        usuario: req.user?.nome,
+        tipo,
+        formato
+      });
+
+      // Configurar headers conforme formato
+      if (formato === 'csv') {
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename=relatorio-${tipo}-${Date.now()}.csv`);
+      } else if (formato === 'excel') {
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename=relatorio-${tipo}-${Date.now()}.xlsx`);
+      } else if (formato === 'pdf') {
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=relatorio-${tipo}-${Date.now()}.pdf`);
+      }
+
+      res.json(dados);
+    } catch (error) {
+      logger.error('Erro ao exportar relatório', {
+        erro: error instanceof Error ? error.message : 'Erro desconhecido',
+        stack: error instanceof Error ? error.stack : undefined,
+        usuario: req.user?.nome
+      });
+      next(error);
+    }
+  }
+
+  // Dashboard com métricas principais
+  async obterDashboard(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      // Log da requisição
+      logger.info('Solicitação de dashboard de relatórios', {
+        usuario: req.user?.nome,
+        usuarioId: req.user?.id
+      });
+
+      // Buscar dados dos últimos 30 dias
+      const filtros = {
+        dataInicio: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        dataFim: new Date()
+      };
+
+      // Buscar todas as análises em paralelo
+      const [resumo, vendas, estoque, financeiro, clientes] = await Promise.all([
+        RelatoriosService.obterResumoExecutivo(filtros),
+        RelatoriosService.obterAnaliseVendas(filtros),
+        RelatoriosService.obterAnaliseEstoque(filtros),
+        RelatoriosService.obterAnaliseFinanceira(filtros),
+        RelatoriosService.obterAnaliseClientes(filtros)
+      ]);
+
+      // Montar dashboard
+      const dashboard = {
+        periodo: {
+          inicio: filtros.dataInicio,
+          fim: filtros.dataFim
+        },
+        resumo: {
+          vendas: resumo.vendas,
+          financeiro: resumo.financeiro,
+          produtos: {
+            estoqueBaixo: resumo.produtos.estoqueBaixo,
+            vencendo: resumo.produtos.vencendo
+          },
+          clientes: {
+            novos: resumo.clientes.novos,
+            recorrentes: resumo.clientes.recorrentes
+          }
+        },
+        graficos: {
+          vendasPorPeriodo: vendas.porPeriodo.slice(-7), // Últimos 7 dias
+          vendasPorCategoria: vendas.porCategoria.slice(0, 5), // Top 5 categorias
+          fluxoCaixa: financeiro.fluxoCaixa.slice(-7), // Últimos 7 dias
+          curvaABC: {
+            A: estoque.curvaABC.A.length,
+            B: estoque.curvaABC.B.length,
+            C: estoque.curvaABC.C.length
+          }
+        },
+        destaques: {
+          produtosMaisVendidos: resumo.produtos.maisVendidos.slice(0, 5),
+          topClientes: resumo.clientes.topCompradores,
+          topVendedores: vendas.porVendedor.slice(0, 3)
+        },
+        alertas: {
+          estoque: estoque.alertas,
+          financeiro: {
+            margemBaixa: financeiro.dre.margemLiquida < 10,
+            fluxoNegativo: financeiro.fluxoCaixa[financeiro.fluxoCaixa.length - 1]?.saldo < 0
+          }
+        }
+      };
+
+      // Log de sucesso
+      logger.info('Dashboard de relatórios gerado com sucesso', {
+        usuario: req.user?.nome
+      });
+
+      res.json(dashboard);
+    } catch (error) {
+      logger.error('Erro ao obter dashboard', {
+        erro: error instanceof Error ? error.message : 'Erro desconhecido',
+        stack: error instanceof Error ? error.stack : undefined,
+        usuario: req.user?.nome
+      });
+      next(error);
+    }
+  }
+}
+
+export default new RelatoriosController();
